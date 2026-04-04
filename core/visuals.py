@@ -52,6 +52,10 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
         ticktext = ["low", "med", "high"]
 
     bg_color = "rgba(0,0,0,0)"
+    theme_type = str(getattr(getattr(st.context, "theme", None), "type", "light")).lower()
+    is_dark = theme_type == "dark"
+    text_color = "#dbe4f2" if is_dark else "#1f2937"
+
 
     # Fixed-size cells make letters and indices easy to read.
     cell_px = 13
@@ -94,7 +98,7 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
                 showarrow=False,
                 xanchor="center",
                 yanchor="middle",
-                font=dict(size=11),
+                font=dict(size=11, color=text_color),
             )
         )
         annotations.append(
@@ -107,7 +111,7 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
                 showarrow=False,
                 xanchor="center",
                 yanchor="middle",
-                font=dict(size=6.5),
+                font=dict(size=6.5, color=text_color),
                 textangle=-90,
             )
         )
@@ -237,7 +241,7 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
     <div style="position: fixed; bottom: 2px; right: 16px; z-index: 9999;
                  background-color: {bg_color}; padding: 8px;
                  border: 1px solid rgba(128,128,128,0.3); border-radius: 4px;
-                 color: inherit;">
+                 color: {text_color}; font-family: sans-serif">
         <div style="font-size: 11px; font-weight: 400;
                     margin-bottom: 4px; text-align: center;">
             {legend_title}
@@ -250,10 +254,10 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
                     <stop offset="100%" stop-color="{colors[2]}" />
                 </linearGradient>
             </defs>
-            <rect x="0" y="0" width="220" height="16" fill="url(#cbar)" stroke="currentColor" stroke-width="0.5"/>
+            <rect x="0" y="0" width="220" height="16" fill="url(#cbar)" stroke="{text_color}" stroke-width="0.5"/>
         </svg>
         <div style="display: flex; justify-content: space-between; font-size: 9px;
-                    margin-top: 2px;">
+                     color: {text_color}; margin-top: 2px;">
             <span>{ticktext[0]}</span>
             <span>{ticktext[1]}</span>
             <span>{ticktext[2]}</span>
@@ -604,7 +608,7 @@ def show_structure_viewer(pdb_path, residue_importance=None, style_mode: str = "
     font-family: sans-serif;
     z-index: 20;
 ">
-    <div style="font-weight: 600; margin-bottom: 4px;">Residue Importance</div>
+    <div style="font-weight: 600; margin-bottom: 4px;">Residue Contribution to Prediction</div>
     <div style="height: 8px; border-radius: 4px; background: linear-gradient(90deg, {imp_low} 0%, {imp_mid} 50%, {imp_high} 100%);"></div>
     <div style="display: flex; justify-content: space-between; margin-top: 3px;">
         <span>neg</span>
@@ -632,16 +636,14 @@ def visualize_sequence_residue_embeddings(
     mode="pca",
     n_pcs=3,
 ):
-    """Visualize sequence residue embeddings using PCA or raw dimensions.
+    """Visualize sequence residue embeddings using PCA.
     
     Args:
         ids: Sequence identifiers
         residues: Residue characters per sequence
         embeddings: Embeddings tensor (num_sequences, num_residues, embedding_dim)
         max_plot_sequences: Max sequences to plot (auto-infer if None)
-        mode: 'pca' or 'raw_dims'
-        n_pcs: Number of principal components for PCA mode
-        mode: 'pca' or 'raw_dims'
+        mode: only 'pca' is supported
         n_pcs: Number of principal components for PCA mode
     """
     # Theme detection for colorscales
@@ -718,199 +720,105 @@ def visualize_sequence_residue_embeddings(
     st.plotly_chart(fig_summary, width='stretch')
     results["sequence_summary"] = seq_summary
 
-    if mode == "pca":
-        X = E_plot.reshape(N_plot * R, D)
-        Xz = StandardScaler().fit_transform(X)
-        n_components = min(n_pcs, D, Xz.shape[0])
-        pca = PCA(n_components=n_components)
-        pcs = pca.fit_transform(Xz).reshape(N_plot, R, n_components)
+    if mode != "pca":
+        raise ValueError("mode must be 'pca'")
 
-        pc_names = [f"pc{i+1}_score" for i in range(n_components)]
+    X = E_plot.reshape(N_plot * R, D)
+    Xz = StandardScaler().fit_transform(X)
+    n_components = min(n_pcs, D, Xz.shape[0])
+    pca = PCA(n_components=n_components)
+    pcs = pca.fit_transform(Xz).reshape(N_plot, R, n_components)
 
-        long_df = pd.DataFrame({
-            "sequence_original_idx": np.repeat(np.arange(N_plot), R),
-            "residue_original_idx": np.tile(np.arange(R), N_plot),
-        })
-        for i, pc_name in enumerate(pc_names):
-            long_df[pc_name] = pcs[:, :, i].reshape(-1)
+    pc_names = [f"pc{i+1}_score" for i in range(n_components)]
 
-        long_df["sequence"] = long_df["sequence_original_idx"].apply(lambda idx: ids_plot[idx])
-        long_df["residue"] = long_df.apply(
-            lambda row: residues_plot[row["sequence_original_idx"]][row["residue_original_idx"]],
-            axis=1,
-        )
-        long_df = long_df.drop(columns=["sequence_original_idx", "residue_original_idx"])
-        long_df = long_df[["sequence", "residue"] + pc_names]
+    long_df = pd.DataFrame({
+        "sequence_original_idx": np.repeat(np.arange(N_plot), R),
+        "residue_original_idx": np.tile(np.arange(R), N_plot),
+    })
+    for i, pc_name in enumerate(pc_names):
+        long_df[pc_name] = pcs[:, :, i].reshape(-1)
 
-        explained_df = pd.DataFrame({
-            "component": [f"PC{i+1}" for i in range(n_components)],
-            "explained_variance_ratio": pca.explained_variance_ratio_,
-        })
+    long_df["sequence"] = long_df["sequence_original_idx"].apply(lambda idx: ids_plot[idx])
+    long_df["residue"] = long_df.apply(
+        lambda row: residues_plot[row["sequence_original_idx"]][row["residue_original_idx"]],
+        axis=1,
+    )
+    long_df = long_df.drop(columns=["sequence_original_idx", "residue_original_idx"])
+    long_df = long_df[["sequence", "residue"] + pc_names]
 
-        st.markdown("**PCA Explained Variance**")
-        st.dataframe(explained_df, width='stretch')
+    explained_df = pd.DataFrame({
+        "component": [f"PC{i+1}" for i in range(n_components)],
+        "explained_variance_ratio": pca.explained_variance_ratio_,
+    })
 
-        custom_hover_residue_chars = np.array([
-            [residues_plot[seq][res] for res in range(R)]
-            for seq in range(N_plot)
-        ])
+    st.markdown("**PCA Explained Variance**")
+    st.dataframe(explained_df, width='stretch')
 
-        for comp_idx, pc_name in enumerate(pc_names):
-            scores = pcs[:, :, comp_idx]
+    custom_hover_residue_chars = np.array([
+        [residues_plot[seq][res] for res in range(R)]
+        for seq in range(N_plot)
+    ])
 
-            fig = go.Figure()
-            for seq in range(N_plot):
-                for res in range(R):
-                    fig.add_trace(
-                        go.Box(
-                            x=[f"Res {res}"],
-                            y=[scores[seq, res]],
-                            name=f"Seq {ids_plot[seq]}",
-                            legendgroup=f"{ids_plot[seq]}",
-                            showlegend=(res == 0),
-                            boxpoints="all",
-                            jitter=0.25,
-                            pointpos=0,
-                            marker=dict(
-                                size=5,
-                                opacity=0.75,
-                                color=seq_colors[seq % len(seq_colors)],
-                            ),
-                            line=dict(width=1),
-                            hovertemplate=(
-                                f"Sequence {ids_plot[seq]}<br>"
-                                f"Residue {res}:{residues_plot[seq][res]}<br>"
-                                f"{pc_name.upper()}=%{{y:.4f}}<extra></extra>"
-                            ),
-                        )
-                    )
-
-            fig.update_layout(
-                title=f"Residue embedding {pc_name.upper()} score per residue",
-                boxmode="group",
-                xaxis_title="Residue",
-                yaxis_title=pc_name.upper(),
-                legend_title="Sequence",
-                width=1200,
-                legend=dict(orientation="h", yanchor="bottom", y=-0.7, xanchor="right", x=1),
-            )
-            _apply_transparent_background(fig)
-            st.plotly_chart(fig, width='stretch')
-
-            # Heatmap
-            heatmap_df = pd.DataFrame(
-                scores,
-                index=[str(ids_plot[i]) for i in range(N_plot)],
-                columns=[f"Res {j}" for j in range(R)],
-            )
-
-            fig2 = go.Figure(
-                data=go.Heatmap(
-                    z=scores,
-                    x=[f"Res {i}" for i in range(R)],
-                    y=[str(ids_plot[i]) for i in range(N_plot)],
-                    colorscale=embedding_heatmap_colorscale,
-                    zmid=0,
-                    colorbar=dict(orientation="h", y=-0.4),
-                    customdata=custom_hover_residue_chars,
-                    hovertemplate=(
-                        "<b>Sequence:</b> %{y}<br>"
-                        "<b>Residue:</b> %{customdata} (%{x})<br>"
-                        f"<b>{pc_name.upper()}:</b> %{{z:.4f}}<extra></extra>"
-                    ),
-                )
-            )
-            fig2.update_layout(
-                title=f"{pc_name.upper()} score heatmap by residue and sequence",
-                xaxis_title="Residue",
-                yaxis=dict(
-                    title="Sequence",
-                    automargin=True,
-                    tickfont=dict(size=11),
-                    categoryorder="trace",
-                ),
-                width=1200,
-                height=800,
-                margin=dict(l=50),
-            )
-            _apply_transparent_background(fig2)
-            fig2.update_yaxes(
-                ticktext=_wrapped_labels(ids_plot),
-                tickvals=[str(ids_plot[i]) for i in range(N_plot)],
-            )
-            st.plotly_chart(fig2, width='stretch')
-
-        results["pcs"] = pcs
-        results["long_df"] = long_df
-        results["explained_variance"] = explained_df
-
-    elif mode == "raw_dims":
-        mean_over_dims = E_plot.mean(axis=2)
+    for comp_idx, pc_name in enumerate(pc_names):
+        scores = pcs[:, :, comp_idx]
 
         fig = go.Figure()
         for seq in range(N_plot):
             for res in range(R):
                 fig.add_trace(
                     go.Box(
-                        x=[f"Res {res}"] * D,
-                        y=E_plot[seq, res, :],
+                        x=[f"Res {res}"],
+                        y=[scores[seq, res]],
                         name=f"Seq {ids_plot[seq]}",
                         legendgroup=f"{ids_plot[seq]}",
                         showlegend=(res == 0),
                         boxpoints="all",
                         jitter=0.25,
-                        marker=dict(opacity=0.75, color=seq_colors[seq % len(seq_colors)]),
+                        pointpos=0,
+                        marker=dict(
+                            size=5,
+                            opacity=0.75,
+                            color=seq_colors[seq % len(seq_colors)],
+                        ),
                         line=dict(width=1),
                         hovertemplate=(
                             f"Sequence {ids_plot[seq]}<br>"
                             f"Residue {res}:{residues_plot[seq][res]}<br>"
-                            "Value=%{y:.4f}<extra></extra>"
+                            f"{pc_name.upper()}=%{{y:.4f}}<extra></extra>"
                         ),
                     )
                 )
 
         fig.update_layout(
-            title="Raw embedding dimension distribution per residue",
+            title=f"Residue embedding {pc_name.upper()} score per residue",
             boxmode="group",
             xaxis_title="Residue",
-            yaxis_title="Embedding value",
+            yaxis_title=pc_name.upper(),
             legend_title="Sequence",
             width=1200,
-            legend=dict(orientation="h", yanchor="bottom", y=-0.6, xanchor="right", x=1),
+            legend=dict(orientation="h", yanchor="bottom", y=-0.7, xanchor="right", x=1),
         )
         _apply_transparent_background(fig)
         st.plotly_chart(fig, width='stretch')
 
-        # Mean heatmap
-        heatmap_df = pd.DataFrame(
-            mean_over_dims,
-            index=[str(ids_plot[i]) for i in range(N_plot)],
-            columns=[f"Res {j}" for j in range(R)],
-        )
-
-        custom_hover_residue_chars = np.array([
-            [residues_plot[seq][res] for res in range(R)]
-            for seq in range(N_plot)
-        ])
-
         fig2 = go.Figure(
             data=go.Heatmap(
-                z=mean_over_dims,
+                z=scores,
                 x=[f"Res {i}" for i in range(R)],
                 y=[str(ids_plot[i]) for i in range(N_plot)],
                 colorscale=embedding_heatmap_colorscale,
                 zmid=0,
-                colorbar=dict(orientation="h", y=-0.4),
+                colorbar=dict(orientation="h"),
                 customdata=custom_hover_residue_chars,
                 hovertemplate=(
                     "<b>Sequence:</b> %{y}<br>"
                     "<b>Residue:</b> %{customdata} (%{x})<br>"
-                    "<b>Mean over dims:</b> %{z:.4f}<extra></extra>"
+                    f"<b>{pc_name.upper()}:</b> %{{z:.4f}}<extra></extra>"
                 ),
             )
         )
         fig2.update_layout(
-            title="Raw embedding mean heatmap by sequence and residue",
+            title=f"{pc_name.upper()} score heatmap by residue and sequence",
             xaxis_title="Residue",
             yaxis=dict(
                 title="Sequence",
@@ -919,7 +827,6 @@ def visualize_sequence_residue_embeddings(
                 categoryorder="trace",
             ),
             width=1200,
-            height=800,
             margin=dict(l=50),
         )
         _apply_transparent_background(fig2)
@@ -928,9 +835,9 @@ def visualize_sequence_residue_embeddings(
             tickvals=[str(ids_plot[i]) for i in range(N_plot)],
         )
         st.plotly_chart(fig2, width='stretch')
-        results["raw_df"] = None
 
-    else:
-        raise ValueError("mode must be either 'pca' or 'raw_dims'")
+    results["pcs"] = pcs
+    results["long_df"] = long_df
+    results["explained_variance"] = explained_df
 
     return results

@@ -31,11 +31,7 @@ if pre_stored_df is not None:
     use_pre_stored = st.checkbox("Use pre-stored data", value=True, key="cmp_use_pre_stored")
     if use_pre_stored:
         df_valid = pre_stored_df.copy()
-        embeddings_all = (
-            pre_stored_embeddings.clone()
-            if hasattr(pre_stored_embeddings, "clone")
-            else pre_stored_embeddings.copy() if pre_stored_embeddings is not None else None
-        )
+        embeddings_all = pre_stored_embeddings  # Store reference, no need to clone
     else:
         uploaded = st.file_uploader("Upload FASTA for comparison", type=["fasta", "fa", "faa", "txt"], key="cmp_fasta")
         text_value = st.text_area("Or paste FASTA / one-sequence-per-line text", height=140, key="cmp_text")

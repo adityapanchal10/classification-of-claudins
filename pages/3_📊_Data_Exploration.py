@@ -37,7 +37,7 @@ if pre_stored_df is not None:
     use_pre_stored = st.checkbox("Use pre-stored data", value=True)
     if use_pre_stored:
         df = pre_stored_df.copy()
-        embeddings = pre_stored_embeddings.clone() if hasattr(pre_stored_embeddings, 'clone') else pre_stored_embeddings.copy() if pre_stored_embeddings is not None else None
+        embeddings = pre_stored_embeddings  # Store reference, no need to clone
     else:
         # Allow manual input override
         uploaded = st.file_uploader("Upload FASTA for exploration", type=["fasta", "fa", "faa", "txt"])
@@ -106,8 +106,8 @@ if df is not None and not df.empty:
                     position: sticky;
                     top: 0;
                     z-index: 999;
-                    padding: 0.9rem 1rem 0.65rem 1rem;
-                    margin: 0 -1rem 0.75rem -1rem;
+                    padding: 0.9rem 1rem;
+                    margin: 0 0 0.75rem 0;
                     border-radius: 16px;
                     background:
                         linear-gradient(135deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.08)),
@@ -134,22 +134,16 @@ if df is not None and not df.empty:
                 help="Select or deselect sequences to update the embedding distributions.",
             )
 
-            col1, col2 = st.columns(2)
-
-            with col1:
-                viz_mode = st.radio("Visualization mode", ["pca", "raw_dims"], horizontal=True)
-
-            with col2:
-                if viz_mode == "pca":
-                    n_pcs = st.slider(
-                        "Number of PCs",
-                        min_value=1,
-                        max_value=min(3, D),
-                        value=min(3, D),
-                        step=1
-                    )
-                else:
-                    n_pcs = 3
+            with st.columns([1, 5])[0]:
+                n_pcs = st.number_input(
+                    "# of PCA components",
+                    min_value=1,
+                    max_value=min(3, D),
+                    value=min(3, D),
+                    step=1,
+                )
+            show_pca_btn = st.button('Show pca distribution', type="primary")
+            viz_mode = "pca"
 
             st.divider()
 
@@ -168,12 +162,13 @@ if df is not None and not df.empty:
                 residues_list = [list(seq) for seq in filtered_df["sequence"].values]
                 ids_list = filtered_df["seq_id"].tolist()
 
-                with st.spinner("Generating visualizations..."):
-                    visualize_sequence_residue_embeddings(
-                        ids=ids_list,
-                        residues=residues_list,
-                        embeddings=filtered_embeddings,
-                        max_plot_sequences=len(selected_indices),
-                        mode=viz_mode,
-                        n_pcs=n_pcs,
-                    )
+                if show_pca_btn:
+                    with st.spinner("Generating visualizations..."):
+                        visualize_sequence_residue_embeddings(
+                            ids=ids_list,
+                            residues=residues_list,
+                            embeddings=filtered_embeddings,
+                            max_plot_sequences=len(selected_indices),
+                            mode=viz_mode,
+                            n_pcs=n_pcs,
+                        )

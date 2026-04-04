@@ -140,9 +140,17 @@ def get_embedder(model_name: str = EMBEDDER_MODEL_NAME):
 
 
 def build_baseline_embeddings(embedder: MSAEmbedder, seq_len: int) -> torch.Tensor:
-    baseline = torch.full((1, 1, seq_len), embedder.alphabet.padding_idx, dtype=torch.long)
-    baseline_embedding = embedder.embed_sequences_per_residue(baseline, seq_length=seq_len, batch_size=1)
+    """Create baseline embeddings using zero-padded sequence representation.
+    The baseline represents "no information" for Integrated Gradients attribution.
+    """
+    # Create a padding-only sequence (all dashes), embed it to get baseline signal
+    padding_seq = ["-" * seq_len]
+    baseline_embedding = embedder.embed_sequences_per_residue(padding_seq, seq_length=seq_len, batch_size=1)
+    # print(f"Baseline embedding shape: {baseline_embedding.shape}")
     return baseline_embedding
+    # baseline = torch.full((1, 1, seq_len), embedder.alphabet.padding_idx, dtype=torch.long)
+    # baseline_embedding = embedder.embed_sequences_per_residue(baseline, seq_length=seq_len, batch_size=1)
+    # print(f"Padding index: {embedder.alphabet.padding_idx}")
 
 
 def infer_structure_with_esmfold(sequence: str, out_dir: Path) -> Optional[Path]:

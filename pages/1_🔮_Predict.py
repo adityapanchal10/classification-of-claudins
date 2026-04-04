@@ -50,11 +50,11 @@ if st.button("Run inference", type="primary"):
     preds, confs, probs, attn = predict_probabilities(bundle, embeddings)
     pred_table = build_prediction_table(df_valid, preds, confs, probs)
     st.session_state.input_sequences_df = df_valid.copy()
-    st.session_state.generated_embeddings = embeddings.clone() if hasattr(embeddings, "clone") else embeddings.copy()
+    st.session_state.generated_embeddings = embeddings  # Store reference, no need to clone
     st.session_state.predict_run = {
         "model_name": model_name,
         "df_valid": df_valid.copy(),
-        "embeddings": embeddings,
+        "embeddings": embeddings,  # Store reference, not a copy
         "preds": preds,
         "confs": confs,
         "attn": attn,
