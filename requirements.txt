@@ -1,0 +1,13 @@
+streamlit>=1.44
+pandas>=2.2
+numpy>=1.26
+matplotlib>=3.8
+plotly>=5.24
+torch>=2.2
+torchinfo>=1.8.0
+scikit-learn>=1.4
+biopython>=1.84
+captum>=0.7
+fair-esm>=2.0.0
+py3Dmol>=2.4.2
+gdown>=5.2
