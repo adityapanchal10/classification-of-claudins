@@ -1,11 +1,16 @@
-import numpy as np
-import pandas as pd
 import streamlit as st
-import torch
 
+from core.embeddings import get_embedder
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.ui import global_sidebar
 from core.visuals import visualize_sequence_residue_embeddings
+
+
+def _infer_embedding_params(df_valid):
+    seq_length = int(df_valid["length"].max())
+    batch_size = len(df_valid)
+
+    return seq_length, batch_size
 
 global_sidebar()
 
@@ -28,9 +33,13 @@ pre_stored_embeddings = st.session_state.get("generated_embeddings", None)
 # Sequence input section
 st.subheader("Sequence Input")
 
+if "run_data_exploration" not in st.session_state:
+    st.session_state["run_data_exploration"] = False
+
 # Initialize variables
 df = None
 embeddings = None
+using_pre_stored_data = False
 
 if pre_stored_df is not None:
     st.info("📌 Using sequences and embeddings from Predict page")
@@ -38,42 +47,54 @@ if pre_stored_df is not None:
     if use_pre_stored:
         df = pre_stored_df.copy()
         embeddings = pre_stored_embeddings  # Store reference, no need to clone
+        using_pre_stored_data = True
     else:
         # Allow manual input override
         uploaded = st.file_uploader("Upload FASTA for exploration", type=["fasta", "fa", "faa", "txt"])
-        text_value = st.text_area("Or paste FASTA / one-sequence-per-line text", height=140)
+        text_value = st.text_area("**OR** paste FASTA / one-sequence-per-line text", height=140, placeholder=">seq1\nMKT...\n>seq2\nVVV...")
         if uploaded is not None or text_value.strip():
             df = validate_sequences(detect_input_dataframe(text_value, uploaded))
 else:
     uploaded = st.file_uploader("Upload FASTA for exploration", type=["fasta", "fa", "faa", "txt"])
-    text_value = st.text_area("Or paste FASTA / one-sequence-per-line text", height=140)
+    text_value = st.text_area("**OR** paste FASTA / one-sequence-per-line text", height=140, placeholder=">seq1\nMKT...\n>seq2\nVVV...")
     if uploaded is not None or text_value.strip():
         df = validate_sequences(detect_input_dataframe(text_value, uploaded))
 
-if df is not None and not df.empty:
+if using_pre_stored_data:
+    st.session_state["run_data_exploration"] = True
+elif st.button("Run exploration", type="primary"):
+    st.session_state["run_data_exploration"] = True
+
+if st.session_state.get("run_data_exploration", False):
+    if df is None or df.empty:
+        st.session_state["run_data_exploration"] = False
+        st.warning("Provide sequence input via textbox or file upload.")
+        st.stop()
+
+    df_valid = df[df["is_valid"]].copy() if "is_valid" in df.columns else df.copy()
+    if df_valid.empty:
+        st.session_state["run_data_exploration"] = False
+        st.error("No valid amino acid sequences were found.")
+        st.stop()
+
     # Embedding visualization section
     st.subheader("Embedding Visualization")
-    
-    # If embeddings not already loaded from Predict page, offer file upload
+
+    # If embeddings are not already available, generate them from current valid sequences.
     if embeddings is None:
-        embeddings_file = st.file_uploader(
-            "Upload embeddings (NPY or PT format)",
-            type=["npy", "pt", "pth"],
-            key="embeddings_upload"
-        )
-        
-        if embeddings_file is not None:
-            try:
-                if embeddings_file.name.endswith(".npy"):
-                    embeddings = np.load(embeddings_file)
-                elif embeddings_file.name.endswith((".pt", ".pth")):
-                    embeddings = torch.load(embeddings_file, map_location="cpu")
-                else:
-                    st.error("Unsupported file format. Use .npy or .pt/.pth")
-                    embeddings = None
-            except Exception as e:
-                st.error(f"Error loading embeddings: {str(e)}")
-                embeddings = None
+        try:
+            with st.spinner("Generating embeddings for input sequences..."):
+                embedder = get_embedder()
+                seq_length, batch_size = _infer_embedding_params(df_valid)
+                embeddings = embedder.embed_sequences_per_residue(
+                    df_valid["sequence"].tolist(),
+                    seq_length=seq_length,
+                    batch_size=batch_size,
+                )
+                st.caption(f"Embedding params: seq_length={seq_length}, batch_size={batch_size}")
+        except Exception as e:
+            st.error(f"Error generating embeddings: {str(e)}")
+            embeddings = None
     
     if embeddings is not None:
         # Validate embeddings shape
@@ -88,9 +109,9 @@ if df is not None and not df.empty:
             N, R, D = E_shape
             st.info(f"Loaded embeddings: {N} sequences × {R} residues × {D} dimensions")
 
-            sequence_count = min(len(df), N)
+            sequence_count = min(len(df_valid), N)
             sequence_labels = [
-                f"{df.iloc[i]['seq_id']} ({df.iloc[i]['length']} aa)"
+                f"{df_valid.iloc[i]['seq_id']} ({df_valid.iloc[i]['length']} aa)"
                 for i in range(sequence_count)
             ]
             default_selection = sequence_labels.copy()
@@ -142,7 +163,7 @@ if df is not None and not df.empty:
                     value=min(3, D),
                     step=1,
                 )
-            show_pca_btn = st.button('Show pca distribution', type="primary")
+            show_pca_btn = st.button('Show pca distribution')
             viz_mode = "pca"
 
             st.divider()
@@ -152,7 +173,7 @@ if df is not None and not df.empty:
             else:
                 label_to_idx = {label: idx for idx, label in enumerate(sequence_labels)}
                 selected_indices = [label_to_idx[label] for label in selected_labels]
-                filtered_df = df.iloc[selected_indices].reset_index(drop=True)
+                filtered_df = df_valid.iloc[selected_indices].reset_index(drop=True)
 
                 if hasattr(embeddings, "detach"):
                     filtered_embeddings = embeddings[selected_indices]

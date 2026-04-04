@@ -827,6 +827,7 @@ def visualize_sequence_residue_embeddings(
                 categoryorder="trace",
             ),
             width=1200,
+            height=200*N_plot,
             margin=dict(l=50),
         )
         _apply_transparent_background(fig2)
