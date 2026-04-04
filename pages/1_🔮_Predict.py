@@ -10,7 +10,7 @@ from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
 from core.predict import build_prediction_table, predict_probabilities
 from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, global_sidebar
-from core.visuals import plot_attention, plot_importance, show_structure_viewer
+from core.visuals import plot_attention, plot_importance, plot_top_attributes, show_structure_viewer
 
 global_sidebar()
 
@@ -129,30 +129,7 @@ if predict_run and predict_run.get("model_name") == model_name:
         if top_attrs.empty:
             top_attrs = ig_df.reindex(ig_df["score"].abs().sort_values(ascending=False).index).head(10).copy()
             top_attrs["contribution"] = "Neutral"
-        st.markdown("**Top 10 attributes (5 most positive, 5 most negative)**")
-        top_attrs_display = top_attrs[["position", "residue", "score", "contribution"]].copy()
-
-        def style_contribution(value):
-            if value == "Positive":
-                return "color: #1f9d55; font-weight: 500;"
-            if value == "Negative":
-                return "color: #c62828; font-weight: 500;"
-            return "color: #6b7280;"
-
-        def style_score(value):
-            if value > 0:
-                return "color: #1f9d55; font-weight: 500;"
-            if value < 0:
-                return "color: #c62828; font-weight: 500;"
-            return "color: #6b7280;"
-
-        top_attrs_styled = (
-            top_attrs_display.style
-            .map(style_contribution, subset=["contribution"])
-            .map(style_score, subset=["score"])
-            .format({"score": "{:.4f}"})
-        )
-        st.dataframe(top_attrs_styled, width="stretch")
+        plot_top_attributes(top_attrs)
 
         st.markdown(f"**Residue Importance via Integrated Gradients** - {row['seq_id']}")
         plot_importance(ig_df, "")

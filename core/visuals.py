@@ -300,6 +300,90 @@ def plot_attention(df, title: str):
     )
 
 
+def plot_top_attributes(top_attrs: pd.DataFrame, title: str = "Top 10 attributes (5 most positive, 5 most negative)"):
+    if top_attrs.empty:
+        st.info("No residue attributes available.")
+        return
+
+    st.markdown(f"**{title}**")
+    top_attrs_display = top_attrs[["position", "residue", "score", "contribution"]].copy()
+    top_attrs_display["raw_score"] = top_attrs_display["score"]
+    max_abs_score = float(top_attrs_display["score"].abs().max()) if not top_attrs_display.empty else 0.0
+    top_attrs_display["display_score"] = (
+        top_attrs_display["score"] / max_abs_score if max_abs_score > 0 else 0.0
+    )
+    top_attrs_display["label"] = top_attrs_display.apply(
+        lambda r: f"{r['residue']}:{int(r['position'])}", axis=1
+    )
+    top_attrs_display = top_attrs_display.sort_values("raw_score", ascending=True)
+
+    base_colors = {
+        "Positive": "#22c55e",
+        "Negative": "#ef4444",
+        "Neutral": "#94a3b8",
+    }
+
+    fig_top_attrs = px.bar(
+        top_attrs_display,
+        x="display_score",
+        y="label",
+        orientation="h",
+        color="contribution",
+        color_discrete_map=base_colors,
+        hover_data={
+            "position": True,
+            "residue": True,
+            "raw_score": ":.4f",
+            "display_score": ":.3f",
+            "contribution": True,
+            "label": False,
+        },
+    )
+
+    translucent_fill = {
+        "Positive": "rgba(34, 197, 94, 0.22)",
+        "Negative": "rgba(239, 68, 68, 0.22)",
+        "Neutral": "rgba(148, 163, 184, 0.18)",
+    }
+    for contrib, outline in base_colors.items():
+        fig_top_attrs.update_traces(
+            selector={"name": contrib},
+            marker=dict(
+                color=translucent_fill[contrib],
+                line=dict(color=outline, width=1.6),
+                cornerradius=2,
+            ),
+            opacity=0.95,
+        )
+
+    fig_top_attrs.update_layout(
+        height=320,
+        margin=dict(l=10, r=10, t=10, b=10),
+        xaxis_title="Relative IG Score",
+        yaxis_title="Residue@Position",
+        legend_title_text="",
+        bargap=0.35,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        legend=dict(
+            bgcolor="rgba(0,0,0,0)",
+            borderwidth=0,
+        ),
+    )
+    fig_top_attrs.update_xaxes(
+        gridcolor="rgba(148, 163, 184, 0.22)",
+        zerolinecolor="rgba(148, 163, 184, 0.35)",
+        linecolor="rgba(148, 163, 184, 0.25)",
+        tickcolor="rgba(148, 163, 184, 0.25)",
+    )
+    fig_top_attrs.update_yaxes(
+        gridcolor="rgba(148, 163, 184, 0.08)",
+        linecolor="rgba(148, 163, 184, 0.25)",
+    )
+    fig_top_attrs.add_vline(x=0, line_width=1, line_dash="dash", line_color="rgba(148, 163, 184, 0.7)")
+    st.plotly_chart(fig_top_attrs, width="stretch")
+
+
 def plot_residue_boxplot(df, value_col: str, title: str, y_title: str, key: str = None):
     labels = [f"{int(pos)}:{res}" for pos, res in zip(df["position"], df["residue"])]
     values = df[value_col].astype(float).to_numpy()
