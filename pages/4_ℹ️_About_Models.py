@@ -27,10 +27,13 @@ st.subheader("Model Summary and Training Stats")
 model_options = list(MODEL_REGISTRY.keys())
 default_model = st.session_state.get("global_model_name", model_options[0])
 default_index = model_options.index(default_model) if default_model in model_options else 0
-selected_model = st.selectbox("Select model", model_options, index=default_index)
-if selected_model != st.session_state.get("global_model_name"):
-    st.session_state["global_model_name"] = selected_model
-    st.rerun()
+selected_model = st.selectbox(
+    "Select model", 
+    model_options, 
+    index=default_index,
+    key="about_models_selectbox",
+    on_change=lambda: st.session_state.update({"global_model_name": st.session_state["about_models_selectbox"]})
+)
 
 try:
     bundle = load_classifier_bundle(selected_model)
