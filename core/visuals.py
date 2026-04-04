@@ -51,9 +51,6 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
         tickvals = [0, 0.5, 1]
         ticktext = ["low", "med", "high"]
 
-    theme_type = str(getattr(getattr(st.context, "theme", None), "type", "light")).lower()
-    is_dark = theme_type == "dark"
-    text_color = "#dbe4f2" if is_dark else "#1f2937"
     bg_color = "rgba(0,0,0,0)"
 
     # Fixed-size cells make letters and indices easy to read.
@@ -97,7 +94,7 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
                 showarrow=False,
                 xanchor="center",
                 yanchor="middle",
-                font=dict(size=11, color=text_color),
+                font=dict(size=11),
             )
         )
         annotations.append(
@@ -110,7 +107,7 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
                 showarrow=False,
                 xanchor="center",
                 yanchor="middle",
-                font=dict(size=6.5, color=text_color),
+                font=dict(size=6.5),
                 textangle=-90,
             )
         )
@@ -128,6 +125,9 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
         range=[-0.5, length - 0.5],
         showgrid=False,
         showticklabels=False,
+        ticks="",
+        ticklen=0,
+        zeroline=False,
         fixedrange=True,
     )
     fig.update_yaxes(
@@ -235,9 +235,10 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
     # Build fixed colorbar HTML
     colorbar_html = f"""
     <div style="position: fixed; bottom: 2px; right: 16px; z-index: 9999;
-                 background-color: {bg_color}; padding: 8px; 
-                 border: 1px solid rgba(128,128,128,0.3); border-radius: 4px;">
-        <div style="font-size: 11px; color: {text_color}; font-weight: 400; 
+                 background-color: {bg_color}; padding: 8px;
+                 border: 1px solid rgba(128,128,128,0.3); border-radius: 4px;
+                 color: inherit;">
+        <div style="font-size: 11px; font-weight: 400;
                     margin-bottom: 4px; text-align: center;">
             {legend_title}
         </div>
@@ -249,10 +250,10 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
                     <stop offset="100%" stop-color="{colors[2]}" />
                 </linearGradient>
             </defs>
-            <rect x="0" y="0" width="220" height="16" fill="url(#cbar)" stroke="{text_color}" stroke-width="0.5"/>
+            <rect x="0" y="0" width="220" height="16" fill="url(#cbar)" stroke="currentColor" stroke-width="0.5"/>
         </svg>
-        <div style="display: flex; justify-content: space-between; font-size: 9px; 
-                    color: {text_color}; margin-top: 2px;">
+        <div style="display: flex; justify-content: space-between; font-size: 9px;
+                    margin-top: 2px;">
             <span>{ticktext[0]}</span>
             <span>{ticktext[1]}</span>
             <span>{ticktext[2]}</span>
