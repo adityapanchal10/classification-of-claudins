@@ -2,14 +2,14 @@ import streamlit as st
 
 from core.ui import app_header, global_sidebar
 
-st.set_page_config(page_title="Protein Sequence Intelligence", layout="wide", page_icon="🧬")
+st.set_page_config(page_title="Functional Classification of Claudins", layout="wide", page_icon="🧬")
 app_header()
 global_sidebar()
 
 st.markdown(
     """
 ### Overview
-Classify protein sequences using **ESM MSA-1b** embeddings and a family of trained classifiers.
+Classify claudin sequences using **ESM MSA-1b** embeddings and a family of trained classifiers.
 Explore what drives the model's predictions with per-residue importance scores and attention maps, and visualise them in the context of the sequence and predicted structure.
 
 | Page | What it does |
