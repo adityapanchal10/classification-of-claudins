@@ -264,7 +264,7 @@ def plot_importance(df, title: str):
     # Theme-aware colorscale for better contrast: red -> neutral -> green
     if is_dark:
         # Dark theme: use lighter neutral gray for better visibility
-        colors = ["#ff4444", "#555555", "#44dd44"]
+        colors = ["#ff4444", "#0e1117", "#44dd44"]
     else:
         # Light theme: use white or light gray for neutral
         colors = ["#cc0000", "#f5f5f5", "#00aa00"]
@@ -285,10 +285,10 @@ def plot_attention(df, title: str):
     # Theme-aware colorscale for better contrast: start from visible color, go to contrasting
     if is_dark:
         # Dark theme: start from light color, go to dark saturated color
-        colors = ["#555555", "#a78bdb", "#7b5ba3"]
+        colors = ["#0e1117", "#2C224A", "#9058d4"]
     else:
         # Light theme: start from light color, go to dark saturated color
-        colors = ["#f0e6ff", "#a78bdb", "#7b5ba3"]
+        colors = ["#f0e6ff", "#dfd0f8", "#9058d4"]
     
     _plot_sequence_colormap(
         df=df,
@@ -320,7 +320,7 @@ def plot_top_attributes(top_attrs: pd.DataFrame, title: str = "Top 10 attributes
     base_colors = {
         "Positive": "#22c55e",
         "Negative": "#ef4444",
-        "Neutral": "#94a3b8",
+        "Neutral": "#0e1117",
     }
 
     fig_top_attrs = px.bar(
@@ -343,7 +343,7 @@ def plot_top_attributes(top_attrs: pd.DataFrame, title: str = "Top 10 attributes
     translucent_fill = {
         "Positive": "rgba(34, 197, 94, 0.22)",
         "Negative": "rgba(239, 68, 68, 0.22)",
-        "Neutral": "rgba(148, 163, 184, 0.18)",
+        "Neutral": "rgba(14, 17, 23, 0.18)",
     }
     for contrib, outline in base_colors.items():
         fig_top_attrs.update_traces(
