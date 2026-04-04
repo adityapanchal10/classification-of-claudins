@@ -1,4 +1,4 @@
-# Protein Sequence Intelligence — Streamlit App
+# Functional Classification of Claudins — Streamlit App
 
 A multi-page Streamlit application for classifying protein sequences using MSA Transformer (ESM-MSA-1b) embeddings and a family of trained classifiers. The app supports batch inference, per-residue explainability, side-by-side model comparison, and embedding distribution exploration.
 
