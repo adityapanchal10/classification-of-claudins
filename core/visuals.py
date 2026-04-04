@@ -16,6 +16,14 @@ except Exception:
     py3Dmol = None
 
 
+def _apply_transparent_background(fig):
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    return fig
+
+
 def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, legend_title: str, colors):
     values = df[value_col].to_numpy(dtype=float)
     residues = df["residue"].astype(str).tolist()
@@ -46,7 +54,7 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
     theme_type = str(getattr(getattr(st.context, "theme", None), "type", "light")).lower()
     is_dark = theme_type == "dark"
     text_color = "#dbe4f2" if is_dark else "#1f2937"
-    bg_color = "#0e1117" if is_dark else "#ffffff"
+    bg_color = "rgba(0,0,0,0)"
 
     # Fixed-size cells make letters and indices easy to read.
     cell_px = 13
@@ -113,9 +121,8 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
         height=fig_h,
         margin=margin,
         annotations=annotations,
-        plot_bgcolor=bg_color,
-        paper_bgcolor=bg_color,
     )
+    _apply_transparent_background(fig)
 
     fig.update_xaxes(
         range=[-0.5, length - 0.5],
@@ -320,7 +327,7 @@ def plot_top_attributes(top_attrs: pd.DataFrame, title: str = "Top 10 attributes
     base_colors = {
         "Positive": "#22c55e",
         "Negative": "#ef4444",
-        "Neutral": "#0e1117",
+        "Neutral": "#94a3b8",
     }
 
     fig_top_attrs = px.bar(
@@ -343,7 +350,7 @@ def plot_top_attributes(top_attrs: pd.DataFrame, title: str = "Top 10 attributes
     translucent_fill = {
         "Positive": "rgba(34, 197, 94, 0.22)",
         "Negative": "rgba(239, 68, 68, 0.22)",
-        "Neutral": "rgba(14, 17, 23, 0.18)",
+        "Neutral": "rgba(148, 163, 184, 0.18)",
     }
     for contrib, outline in base_colors.items():
         fig_top_attrs.update_traces(
@@ -381,6 +388,7 @@ def plot_top_attributes(top_attrs: pd.DataFrame, title: str = "Top 10 attributes
         linecolor="rgba(148, 163, 184, 0.25)",
     )
     fig_top_attrs.add_vline(x=0, line_width=1, line_dash="dash", line_color="rgba(148, 163, 184, 0.7)")
+    _apply_transparent_background(fig_top_attrs)
     st.plotly_chart(fig_top_attrs, width="stretch")
 
 
@@ -427,6 +435,7 @@ def plot_residue_boxplot(df, value_col: str, title: str, y_title: str, key: str 
         height=460,
         margin=dict(l=40, r=20, t=50, b=140),
     )
+    _apply_transparent_background(fig)
     fig.update_xaxes(tickangle=-70)
     st.plotly_chart(fig, width="stretch", key=key)
 
@@ -468,7 +477,7 @@ def show_structure_viewer(pdb_path, residue_importance=None, style_mode: str = "
 
     theme_type = str(getattr(getattr(st.context, "theme", None), "type", "light")).lower()
     is_dark = theme_type == "dark"
-    viewer_bg = "#0e1117" if is_dark else "#ffffff"
+    viewer_bg = "rgba(0,0,0,0)"
     legend_bg = "rgba(17, 24, 39, 0.88)" if is_dark else "rgba(255, 255, 255, 0.94)"
     legend_text = "#e5e7eb" if is_dark else "#111827"
     tooltip_bg = "#111827" if is_dark else "#111827"
@@ -508,7 +517,7 @@ def show_structure_viewer(pdb_path, residue_importance=None, style_mode: str = "
       if (attempt < 60) setTimeout(function() {{ installHover(attempt + 1); }}, 100);
       return;
     }}
-        viewer.setBackgroundColor("{viewer_bg}", 1.0);
+        viewer.setBackgroundColor("{viewer_bg}", 0.0);
 
         function hexToRgb(hex) {{
             const h = hex.replace('#', '');
@@ -605,7 +614,7 @@ def show_structure_viewer(pdb_path, residue_importance=None, style_mode: str = "
 """
 
         combined_html = f"""
-<div style="position: relative; width: 100%; height: 500px;">
+<div style="position: relative; width: 100%; height: 500px; background: transparent;">
 {html}
 {legend_html}
 </div>
@@ -704,6 +713,7 @@ def visualize_sequence_residue_embeddings(
         width=1200,
         height=500,
     )
+    _apply_transparent_background(fig_summary)
     st.plotly_chart(fig_summary, width='stretch')
     results["sequence_summary"] = seq_summary
 
@@ -783,6 +793,7 @@ def visualize_sequence_residue_embeddings(
                 width=1200,
                 legend=dict(orientation="h", yanchor="bottom", y=-0.7, xanchor="right", x=1),
             )
+            _apply_transparent_background(fig)
             st.plotly_chart(fig, width='stretch')
 
             # Heatmap
@@ -821,6 +832,7 @@ def visualize_sequence_residue_embeddings(
                 height=800,
                 margin=dict(l=50),
             )
+            _apply_transparent_background(fig2)
             fig2.update_yaxes(
                 ticktext=_wrapped_labels(ids_plot),
                 tickvals=[str(ids_plot[i]) for i in range(N_plot)],
@@ -865,6 +877,7 @@ def visualize_sequence_residue_embeddings(
             width=1200,
             legend=dict(orientation="h", yanchor="bottom", y=-0.6, xanchor="right", x=1),
         )
+        _apply_transparent_background(fig)
         st.plotly_chart(fig, width='stretch')
 
         # Mean heatmap
@@ -908,6 +921,7 @@ def visualize_sequence_residue_embeddings(
             height=800,
             margin=dict(l=50),
         )
+        _apply_transparent_background(fig2)
         fig2.update_yaxes(
             ticktext=_wrapped_labels(ids_plot),
             tickvals=[str(ids_plot[i]) for i in range(N_plot)],
