@@ -7,6 +7,7 @@ import tempfile
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import streamlit as st
 
 from core.config import CHECKPOINTS_DIR, MODEL_REGISTRY, resolve_checkpoint_url
 
@@ -448,7 +449,9 @@ def _ensure_checkpoint_file(model_name: str, checkpoint_file: str) -> Path:
     if not checkpoint_url:
         return ckpt_path
 
+    st.toast(f"Downloading model: {model_name}")
     _download_checkpoint_from_url(checkpoint_url, ckpt_path)
+    st.toast(f"Model ready: {model_name}")
     print(f"[MODEL] Downloaded checkpoint for model '{model_name}' to: {ckpt_path}")
     return ckpt_path
 

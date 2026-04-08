@@ -43,7 +43,7 @@ if st.button("Run inference", type="primary"):
         st.error("No valid amino acid sequences were found.")
         st.stop()
 
-    with st.spinner("Generating embeddings, Downloading model..."):
+    with st.spinner("Generating embeddings..."):
         embedder = get_embedder()
         embeddings = embedder.embed_sequences_per_residue(df_valid["sequence"].tolist(), seq_length=seq_length, batch_size=batch_size)
 
