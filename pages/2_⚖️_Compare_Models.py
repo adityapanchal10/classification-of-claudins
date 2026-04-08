@@ -53,7 +53,17 @@ if df_valid.empty:
     st.warning("No valid amino acid sequences are available for comparison.")
     st.stop()
 
-if embeddings_all is None:
+compare_embedding_cache_key = (
+    tuple(df_valid["sequence"].tolist()),
+    int(seq_length),
+    int(batch_size),
+)
+cached_compare_key = st.session_state.get("_compare_embedding_cache_key")
+cached_compare_embeddings = st.session_state.get("_compare_embedding_cache_value")
+if cached_compare_key == compare_embedding_cache_key and cached_compare_embeddings is not None:
+    embeddings_all = cached_compare_embeddings
+    print("[PAGE Compare] Reusing cached embeddings")
+elif embeddings_all is None:
     with st.spinner("Generating embeddings for comparison..."):
         embedder = get_embedder()
         embeddings_all = embedder.embed_sequences_per_residue(
@@ -61,6 +71,8 @@ if embeddings_all is None:
             seq_length=seq_length,
             batch_size=batch_size,
         )
+    st.session_state["_compare_embedding_cache_key"] = compare_embedding_cache_key
+    st.session_state["_compare_embedding_cache_value"] = embeddings_all
 
 if not hasattr(embeddings_all, "shape") or len(embeddings_all.shape) != 3:
     st.error("Expected embeddings shape (num_sequences, num_residues, embedding_dim).")

@@ -117,8 +117,11 @@ class MSAEmbedder:
             processed.append(seq[:seq_length] if len(seq) > seq_length else seq.ljust(seq_length, pad_char))
         return processed
 
-    def embed_sequences_per_residue(self, sequences, seq_length=190, batch_size=32):
-        print(f"[EMBED] Start n_seq={len(sequences)} seq_len={seq_length} batch={batch_size}")
+    def embed_sequences_per_residue(self, sequences, seq_length=190, batch_size=32, is_baseline=False):
+        if is_baseline:
+            print(f"[EMBED] Generating baseline embeddings seq_len={seq_length}")
+        else:
+            print(f"[EMBED] Start n_seq={len(sequences)} seq_len={seq_length} batch={batch_size}")
         sequences = self._clean_sequences(sequences)
         sequences = self.pad_or_truncate(sequences, seq_length) if seq_length is not None else sequences
         all_embeddings = []
@@ -137,7 +140,10 @@ class MSAEmbedder:
         embeddings = torch.cat(all_embeddings, dim=1).squeeze()
         if embeddings.ndim == 2:
             embeddings = embeddings.unsqueeze(0)
-        print(f"[EMBED] Done shape={tuple(embeddings.shape)}")
+        if is_baseline:
+            print(f"[EMBED] Done Baseline embeddings shape={tuple(embeddings.shape)}")
+        else:
+            print(f"[EMBED] Done shape={tuple(embeddings.shape)}")
         return embeddings
 
 
@@ -152,7 +158,7 @@ def build_baseline_embeddings(embedder: MSAEmbedder, seq_len: int) -> torch.Tens
     """
     # Create a padding-only sequence (all dashes), embed it to get baseline signal
     padding_seq = ["-" * seq_len]
-    baseline_embedding = embedder.embed_sequences_per_residue(padding_seq, seq_length=seq_len, batch_size=1)
+    baseline_embedding = embedder.embed_sequences_per_residue(padding_seq, seq_length=seq_len, batch_size=1, is_baseline=True)
     # print(f"Baseline embedding shape: {baseline_embedding.shape}")
     return baseline_embedding
     # baseline = torch.full((1, 1, seq_len), embedder.alphabet.padding_idx, dtype=torch.long)

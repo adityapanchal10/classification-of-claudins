@@ -44,10 +44,28 @@ if st.button("Run inference", type="primary"):
         st.error("No valid amino acid sequences were found.")
         st.stop()
 
-    with st.spinner("Generating embeddings..."):
-        embedder = get_embedder()
-        st.toast(f"⚗️ Embedder ready: {getattr(embedder, 'model_name', 'esm_msa1b_t12_100M_UR50S')}")
-        embeddings = embedder.embed_sequences_per_residue(df_valid["sequence"].tolist(), seq_length=seq_length, batch_size=batch_size)
+    embedding_cache_key = (
+        tuple(df_valid["sequence"].tolist()),
+        int(seq_length),
+        int(batch_size),
+    )
+
+    cached_key = st.session_state.get("_predict_embedding_cache_key")
+    cached_embeddings = st.session_state.get("_predict_embedding_cache_value")
+    if cached_key == embedding_cache_key and cached_embeddings is not None:
+        embeddings = cached_embeddings
+        print("[PAGE Predict] Reusing cached embeddings")
+    else:
+        with st.spinner("Generating embeddings..."):
+            embedder = get_embedder()
+            st.toast(f"⚗️ Embedder ready: {getattr(embedder, 'model_name', 'esm_msa1b_t12_100M_UR50S')}")
+            embeddings = embedder.embed_sequences_per_residue(
+                df_valid["sequence"].tolist(),
+                seq_length=seq_length,
+                batch_size=batch_size,
+            )
+        st.session_state["_predict_embedding_cache_key"] = embedding_cache_key
+        st.session_state["_predict_embedding_cache_value"] = embeddings
 
     preds, confs, probs, attn = predict_probabilities(bundle, embeddings)
     pred_table = build_prediction_table(df_valid, preds, confs, probs)
@@ -95,21 +113,44 @@ if predict_run and predict_run.get("model_name") == model_name:
         row = df_valid.iloc[explain_idx]
         sample_embedding = embeddings[explain_idx].unsqueeze(0)
         sample_pred = int(preds[explain_idx])
-        baseline_embedding = build_baseline_embeddings(get_embedder(), seq_length)
-        residue_attrs, delta = compute_ig_attributions(
-            bundle.classifier,
-            sample_embedding,
-            baseline_embedding,
-            sample_pred,
-            n_steps=ig_steps,
+        inspect_cache_key = (
+            model_name,
+            int(explain_idx),
+            int(ig_steps),
+            str(row["sequence"]),
+            int(sample_pred),
         )
-        trunc_seq = row["sequence"][: sample_embedding.shape[1]]
-        ig_df = residue_importance_dataframe(trunc_seq, residue_attrs.squeeze(0).numpy()[: len(trunc_seq)])
-        st.session_state.predict_run["inspected_result"] = {
-            "explain_idx": explain_idx,
-            "trunc_seq": trunc_seq,
-            "ig_df": ig_df,
-        }
+        cached_inspected_result = st.session_state.predict_run.get("inspected_result")
+        if cached_inspected_result is not None and cached_inspected_result.get("cache_key") == inspect_cache_key:
+            print("[PAGE Predict] Reusing cached inspect result")
+        else:
+            embedder = get_embedder()
+            baseline_cache_key = (getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S"), int(seq_length))
+            cached_baseline_key = st.session_state.get("_predict_baseline_cache_key")
+            cached_baseline = st.session_state.get("_predict_baseline_cache_value")
+            if cached_baseline_key == baseline_cache_key and cached_baseline is not None:
+                baseline_embedding = cached_baseline
+                print("[PAGE Predict] Reusing cached baseline embedding")
+            else:
+                baseline_embedding = build_baseline_embeddings(embedder, seq_length)
+                st.session_state["_predict_baseline_cache_key"] = baseline_cache_key
+                st.session_state["_predict_baseline_cache_value"] = baseline_embedding
+
+            residue_attrs, delta = compute_ig_attributions(
+                bundle.classifier,
+                sample_embedding,
+                baseline_embedding,
+                sample_pred,
+                n_steps=ig_steps,
+            )
+            trunc_seq = row["sequence"][: sample_embedding.shape[1]]
+            ig_df = residue_importance_dataframe(trunc_seq, residue_attrs.squeeze(0).numpy()[: len(trunc_seq)])
+            st.session_state.predict_run["inspected_result"] = {
+                "cache_key": inspect_cache_key,
+                "explain_idx": explain_idx,
+                "trunc_seq": trunc_seq,
+                "ig_df": ig_df,
+            }
 
     inspected_result = st.session_state.predict_run.get("inspected_result")
     if inspected_result is None:
