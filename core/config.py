@@ -28,36 +28,29 @@ def _load_json_mapping(env_var_name: str) -> dict[str, str]:
 
 
 CHECKPOINT_GDRIVE_URLS = {
-    "transformer_mlp_classifier.pt": "https://drive.google.com/file/d/1Ah_lZXwuqNoY9ke_Zh2iQ9FD4h5XRRpk/view?usp=drive_link",
-    "simple_linear_classifier.pt": "https://drive.google.com/file/d/1yAw3_8LBGx7wkwY_GRGPPrmMWqkRrs-k/view?usp=drive_link",
-    "simple_cnn_classifier.pt": "https://drive.google.com/file/d/1lALilrt0OBFKXvzRTNcwOm_rgplkNTFF/view?usp=drive_link",
-    "transformer_classifier_simple.pt": "https://drive.google.com/file/d/1Zsrj8FiF1yk_W-MCPeSuyNAycJZU6zas/view?usp=drive_link",
-    "transformer_classifier_complex.pt": "https://drive.google.com/file/d/1O-pv5B_H9KPOxN67YlbMzjSTnQxQxyni/view?usp=drive_link",
+    "Transformer + MLP Classifier": "https://drive.google.com/file/d/1Ah_lZXwuqNoY9ke_Zh2iQ9FD4h5XRRpk/view?usp=drive_link",
+    "Simple Linear Classifier": "https://drive.google.com/file/d/1yAw3_8LBGx7wkwY_GRGPPrmMWqkRrs-k/view?usp=drive_link",
+    "Simple CNN Classifier": "https://drive.google.com/file/d/1lALilrt0OBFKXvzRTNcwOm_rgplkNTFF/view?usp=drive_link",
+    "Transformer Classifier (simple)": "https://drive.google.com/file/d/1Zsrj8FiF1yk_W-MCPeSuyNAycJZU6zas/view?usp=drive_link",
+    "Transformer Classifier (complex)": "https://drive.google.com/file/d/1O-pv5B_H9KPOxN67YlbMzjSTnQxQxyni/view?usp=drive_link",
 }
 
 # Optional override via environment variable.
 # Example:
-# {"transformer_mlp_classifier.pt": "https://drive.google.com/uc?id=<id>", ...}
+# {"Transformer + MLP Classifier": "https://drive.google.com/file/d/<id>/view", ...}
 CHECKPOINT_GDRIVE_URLS.update(_load_json_mapping("CHECKPOINT_GDRIVE_URLS_JSON"))
 
-# Optional fallback: map filename -> Google Drive file id.
-# Example:
-# {"transformer_mlp_classifier.pt": "<drive_file_id>", ...}
-CHECKPOINT_GDRIVE_FILE_IDS = _load_json_mapping("CHECKPOINT_GDRIVE_FILE_IDS_JSON")
 
-
-def _build_gdrive_download_url(file_id: str) -> str:
-    return f"https://drive.google.com/uc?id={file_id}"
-
-
-def resolve_checkpoint_url(checkpoint_file: str) -> Optional[str]:
-    mapped_url = CHECKPOINT_GDRIVE_URLS.get(checkpoint_file, "").strip()
+def resolve_checkpoint_url(model_name: str, checkpoint_file: Optional[str] = None) -> Optional[str]:
+    mapped_url = CHECKPOINT_GDRIVE_URLS.get(model_name, "").strip()
     if mapped_url:
         return mapped_url
 
-    file_id = CHECKPOINT_GDRIVE_FILE_IDS.get(checkpoint_file, "").strip()
-    if file_id:
-        return _build_gdrive_download_url(file_id)
+    # Backward compatibility: also support checkpoint filename keys in custom env mappings.
+    if checkpoint_file:
+        legacy_url = CHECKPOINT_GDRIVE_URLS.get(checkpoint_file, "").strip()
+        if legacy_url:
+            return legacy_url
     return None
 
 CLASS_MAP = {0: "Barrier forming", 1: "Cation-channel forming", 2: "Anion-channel forming"}

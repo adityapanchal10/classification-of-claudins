@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import importlib
 from pathlib import Path
+import re
 import tempfile
 
 import torch
@@ -426,32 +427,47 @@ def _download_checkpoint_from_url(url: str, destination: Path) -> None:
         raise
 
 
-def _ensure_checkpoint_file(checkpoint_file: str) -> Path:
-    ckpt_path = CHECKPOINTS_DIR / checkpoint_file
+def _checkpoint_filename_from_model_key(model_name: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "_", model_name.lower()).strip("_")
+    return f"{slug}.pt"
+
+
+def _ensure_checkpoint_file(model_name: str, checkpoint_file: str) -> Path:
+    ckpt_path = CHECKPOINTS_DIR / _checkpoint_filename_from_model_key(model_name)
     if ckpt_path.exists():
+        print(f"[MODEL] Checkpoint ready: {ckpt_path}")
         return ckpt_path
 
-    checkpoint_url = resolve_checkpoint_url(checkpoint_file)
+    # Reuse existing legacy filename if it is already present locally.
+    legacy_path = CHECKPOINTS_DIR / checkpoint_file
+    if legacy_path.exists():
+        print(f"[MODEL] Checkpoint ready: {legacy_path}")
+        return legacy_path
+
+    checkpoint_url = resolve_checkpoint_url(model_name=model_name, checkpoint_file=checkpoint_file)
     if not checkpoint_url:
         return ckpt_path
 
     _download_checkpoint_from_url(checkpoint_url, ckpt_path)
+    print(f"[MODEL] Downloaded checkpoint for model '{model_name}' to: {ckpt_path}")
     return ckpt_path
 
 
 def load_classifier_bundle(model_name: str) -> LoadedModelBundle:
+    print(f"[MODEL] Load model: {model_name}")
     cfg = MODEL_REGISTRY[model_name]
     classifier = MODEL_CLASS_MAP[cfg["class_name"]](**cfg.get("kwargs", {}))
-    ckpt_path = _ensure_checkpoint_file(cfg["checkpoint_file"])
+    ckpt_path = _ensure_checkpoint_file(model_name=model_name, checkpoint_file=cfg["checkpoint_file"])
     if not ckpt_path.exists():
         raise FileNotFoundError(
             f"Missing checkpoint file {cfg['checkpoint_file']} in {CHECKPOINTS_DIR}. "
-            "Set CHECKPOINT_GDRIVE_URLS_JSON (or CHECKPOINT_GDRIVE_FILE_IDS_JSON)."
+            "Set CHECKPOINT_GDRIVE_URLS_JSON with model-name -> Google Drive link mapping."
         )
     checkpoint = torch.load(ckpt_path, weights_only=False, map_location="cpu")
     state = checkpoint.get("model_state", checkpoint)
     classifier.load_state_dict(state, strict=False)
     classifier.eval()
+    print(f"[MODEL] Ready: {model_name} ({ckpt_path})")
     return LoadedModelBundle(
         model_name=model_name,
         classifier=classifier,
