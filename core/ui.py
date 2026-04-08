@@ -25,3 +25,14 @@ def global_sidebar():
     model_name = st.sidebar.selectbox("Model", model_options, key="global_model_name")
     ig_steps = st.sidebar.slider("Integrated Gradients steps", min_value=50, max_value=200, step=10, key="global_ig_steps")
     return model_name, DEFAULT_SEQ_LENGTH, DEFAULT_BATCH_SIZE, ig_steps
+
+
+def toast_once(session_key, item_key, message):
+    toast_state = st.session_state.get(session_key, {})
+    if toast_state.get(item_key, False):
+        return False
+
+    st.toast(message)
+    toast_state[item_key] = True
+    st.session_state[session_key] = toast_state
+    return True

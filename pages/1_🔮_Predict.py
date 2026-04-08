@@ -9,7 +9,7 @@ from core.explainability import attention_dataframe, compute_ig_attributions, re
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
 from core.predict import build_prediction_table, predict_probabilities
-from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, global_sidebar
+from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, global_sidebar, toast_once
 from core.visuals import plot_attention, plot_importance, plot_top_attributes, show_structure_viewer
 
 global_sidebar()
@@ -58,7 +58,8 @@ if st.button("Run inference", type="primary"):
     else:
         with st.spinner("Generating embeddings..."):
             embedder = get_embedder()
-            st.toast(f"⚗️ Embedder ready: {getattr(embedder, 'model_name', 'esm_msa1b_t12_100M_UR50S')}")
+            embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
+            toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
             embeddings = embedder.embed_sequences_per_residue(
                 df_valid["sequence"].tolist(),
                 seq_length=seq_length,

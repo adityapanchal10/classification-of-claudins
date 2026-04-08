@@ -95,9 +95,7 @@ class MSAEmbedder:
             self.model, self.alphabet = _load_embedder_from_checkpoints(model_name)
             print(f"[EMBED] Loaded embedder from checkpoints model={model_name}")
         except Exception:
-            st.toast(f"⚗️ Downloading embedder: {model_name}")
             self.model, self.alphabet = _download_and_cache_embedder(model_name)
-            st.toast(f"⚗️ Embedder ready: {model_name}")
             print(f"[EMBED] Downloaded embedder model={model_name}")
         self.batch_converter = self.alphabet.get_batch_converter()
         self.model = self.model.to(self.device)

@@ -6,7 +6,7 @@ from core.explainability import attention_dataframe, compute_ig_attributions, re
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
 from core.predict import predict_probabilities
-from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, global_sidebar
+from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, global_sidebar, toast_once
 from core.visuals import plot_residue_boxplot
 
 global_sidebar()
@@ -66,6 +66,8 @@ if cached_compare_key == compare_embedding_cache_key and cached_compare_embeddin
 elif embeddings_all is None:
     with st.spinner("Generating embeddings for comparison..."):
         embedder = get_embedder()
+        embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
+        toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
         embeddings_all = embedder.embed_sequences_per_residue(
             df_valid["sequence"].tolist(),
             seq_length=seq_length,

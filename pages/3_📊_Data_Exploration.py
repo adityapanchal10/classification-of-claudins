@@ -2,7 +2,7 @@ import streamlit as st
 
 from core.embeddings import get_embedder
 from core.io_utils import detect_input_dataframe, validate_sequences
-from core.ui import global_sidebar
+from core.ui import global_sidebar, toast_once
 from core.visuals import visualize_sequence_residue_embeddings
 
 
@@ -86,6 +86,8 @@ if st.session_state.get("run_data_exploration", False):
         try:
             with st.spinner("Generating embeddings for input sequences..."):
                 embedder = get_embedder()
+                embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
+                toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
                 seq_length, batch_size = _infer_embedding_params(df_valid)
                 embeddings = embedder.embed_sequences_per_residue(
                     df_valid["sequence"].tolist(),
