@@ -32,6 +32,7 @@ st.markdown("**OR**")
 uploaded_file = st.file_uploader("Upload FASTA", type=["fasta", "fa", "faa", "txt"])
 
 if st.button("Run inference", type="primary"):
+    print(f"[PAGE Predict] Run inference model={model_name}")
     if not text_value.strip() and uploaded_file is None:
         st.warning("Provide sequence input via textbox or file upload.")
         st.stop()
@@ -45,10 +46,12 @@ if st.button("Run inference", type="primary"):
 
     with st.spinner("Generating embeddings..."):
         embedder = get_embedder()
+        st.toast(f"⚗️ Embedder ready: {getattr(embedder, 'model_name', 'esm_msa1b_t12_100M_UR50S')}")
         embeddings = embedder.embed_sequences_per_residue(df_valid["sequence"].tolist(), seq_length=seq_length, batch_size=batch_size)
 
     preds, confs, probs, attn = predict_probabilities(bundle, embeddings)
     pred_table = build_prediction_table(df_valid, preds, confs, probs)
+    print(f"[PAGE Predict] Inference done n_seq={len(df_valid)}")
     st.session_state.input_sequences_df = df_valid.copy()
     st.session_state.generated_embeddings = embeddings  # Store reference, no need to clone
     st.session_state.predict_run = {
@@ -86,6 +89,7 @@ if predict_run and predict_run.get("model_name") == model_name:
         inspect_clicked = st.form_submit_button("Inspect sequence", type="primary")
 
     if inspect_clicked:
+        print(f"[PAGE Predict] Inspect idx={explain_idx}")
         st.session_state.predict_run["explain_idx"] = explain_idx
 
         row = df_valid.iloc[explain_idx]
@@ -151,10 +155,12 @@ if predict_run and predict_run.get("model_name") == model_name:
             key=f"structure_style_{explain_idx}",
         )
         if st.button("Predict structure with ESMFold"):
+            print(f"[PAGE Predict] ESMFold start seq_id={row['seq_id']}")
             with st.spinner("Running ESMFold..."):
                 pdb_path = infer_structure_with_esmfold(row["sequence"], Path(tempfile.gettempdir()) / "protein_sequence_app_v2")
             if pdb_path is None:
                 st.error("ESMFold inference is unavailable in this environment. Configure dependencies and retry.")
             else:
+                print(f"[PAGE Predict] ESMFold done path={pdb_path}")
                 show_structure_viewer(pdb_path, residue_importance=ig_df, style_mode=structure_style)
                 st.download_button("Download PDB", pdb_path.read_bytes(), file_name=f"{row['seq_id']}.pdb", mime="chemical/x-pdb")

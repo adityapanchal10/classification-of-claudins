@@ -89,11 +89,16 @@ class MSAEmbedder:
     def __init__(self, model_name=EMBEDDER_MODEL_NAME, device=None):
         if esm is None:
             raise ImportError("fair-esm is not installed. Install it from requirements.txt.")
+        self.model_name = model_name
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") if device is None else device
         try:
             self.model, self.alphabet = _load_embedder_from_checkpoints(model_name)
+            print(f"[EMBED] Loaded embedder from checkpoints model={model_name}")
         except Exception:
+            st.toast(f"⚗️ Downloading embedder: {model_name}")
             self.model, self.alphabet = _download_and_cache_embedder(model_name)
+            st.toast(f"⚗️ Embedder ready: {model_name}")
+            print(f"[EMBED] Downloaded embedder model={model_name}")
         self.batch_converter = self.alphabet.get_batch_converter()
         self.model = self.model.to(self.device)
         self.valid_chars = set(self.alphabet.all_toks)
@@ -113,6 +118,7 @@ class MSAEmbedder:
         return processed
 
     def embed_sequences_per_residue(self, sequences, seq_length=190, batch_size=32):
+        print(f"[EMBED] Start n_seq={len(sequences)} seq_len={seq_length} batch={batch_size}")
         sequences = self._clean_sequences(sequences)
         sequences = self.pad_or_truncate(sequences, seq_length) if seq_length is not None else sequences
         all_embeddings = []
@@ -131,6 +137,7 @@ class MSAEmbedder:
         embeddings = torch.cat(all_embeddings, dim=1).squeeze()
         if embeddings.ndim == 2:
             embeddings = embeddings.unsqueeze(0)
+        print(f"[EMBED] Done shape={tuple(embeddings.shape)}")
         return embeddings
 
 

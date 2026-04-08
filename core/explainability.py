@@ -5,6 +5,7 @@ from captum.attr import IntegratedGradients
 
 
 def compute_ig_attributions(model, inputs, baseline, target_class, n_steps=50, device=None):
+    print(f"[XAI] IG start target={target_class} steps={n_steps}")
     if device is None:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device).eval()
@@ -24,6 +25,7 @@ def compute_ig_attributions(model, inputs, baseline, target_class, n_steps=50, d
         method='gausslegendre',
     )
     residue_attrs = torch.sum(attributions, dim=2)
+    print("[XAI] IG done")
     return residue_attrs.detach().cpu(), delta.detach().cpu()
 
 

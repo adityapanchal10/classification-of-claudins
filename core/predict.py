@@ -5,6 +5,7 @@ from core.config import CLASS_MAP, DEFAULT_CLASSES
 
 
 def predict_probabilities(bundle, embeddings):
+    print(f"[PRED] Start model={bundle.model_name} n_seq={int(embeddings.shape[0])}")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = bundle.classifier.to(device)
     x = embeddings.to(device)
@@ -17,6 +18,7 @@ def predict_probabilities(bundle, embeddings):
         probs = torch.softmax(logits, dim=1)
         preds = probs.argmax(dim=1)
         confs = probs.max(dim=1).values
+    print(f"[PRED] Done model={bundle.model_name}")
     return preds.cpu().numpy(), confs.cpu().numpy(), probs.cpu().numpy(), attn.cpu() if attn is not None else None
 
 

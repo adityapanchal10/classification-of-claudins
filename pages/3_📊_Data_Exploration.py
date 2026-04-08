@@ -63,6 +63,7 @@ else:
 if using_pre_stored_data:
     st.session_state["run_data_exploration"] = True
 elif st.button("Run exploration", type="primary"):
+    print("[PAGE Explore] Run exploration")
     st.session_state["run_data_exploration"] = True
 
 if st.session_state.get("run_data_exploration", False):
@@ -92,6 +93,7 @@ if st.session_state.get("run_data_exploration", False):
                     batch_size=batch_size,
                 )
                 st.caption(f"Embedding params: seq_length={seq_length}, batch_size={batch_size}")
+                print(f"[PAGE Explore] Embeddings ready n_seq={len(df_valid)}")
         except Exception as e:
             st.error(f"Error generating embeddings: {str(e)}")
             embeddings = None
@@ -184,6 +186,7 @@ if st.session_state.get("run_data_exploration", False):
                 ids_list = filtered_df["seq_id"].tolist()
 
                 if show_pca_btn:
+                    print(f"[PAGE Explore] Show PCA n_seq={len(selected_indices)} pcs={n_pcs}")
                     with st.spinner("Generating visualizations..."):
                         visualize_sequence_residue_embeddings(
                             ids=ids_list,

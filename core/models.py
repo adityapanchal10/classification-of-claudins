@@ -434,31 +434,54 @@ def _checkpoint_filename_from_model_key(model_name: str) -> str:
 
 
 def _ensure_checkpoint_file(model_name: str, checkpoint_file: str) -> Path:
+    activity_state = st.session_state.get("_model_activity_logged", {})
+    model_state = activity_state.get(model_name, {})
+
     ckpt_path = CHECKPOINTS_DIR / _checkpoint_filename_from_model_key(model_name)
     if ckpt_path.exists():
-        print(f"[MODEL] Checkpoint ready: {ckpt_path}")
+        if not model_state.get("checkpoint_ready", False):
+            print(f"[MODEL] Checkpoint ready: {ckpt_path}")
+            model_state["checkpoint_ready"] = True
+            activity_state[model_name] = model_state
+            st.session_state["_model_activity_logged"] = activity_state
         return ckpt_path
 
     # Reuse existing legacy filename if it is already present locally.
     legacy_path = CHECKPOINTS_DIR / checkpoint_file
     if legacy_path.exists():
-        print(f"[MODEL] Checkpoint ready: {legacy_path}")
+        if not model_state.get("checkpoint_ready", False):
+            print(f"[MODEL] Checkpoint ready: {legacy_path}")
+            model_state["checkpoint_ready"] = True
+            activity_state[model_name] = model_state
+            st.session_state["_model_activity_logged"] = activity_state
         return legacy_path
 
     checkpoint_url = resolve_checkpoint_url(model_name=model_name, checkpoint_file=checkpoint_file)
     if not checkpoint_url:
         return ckpt_path
 
-    st.toast(f"Downloading model: {model_name}")
+    st.toast(f"🚀 Downloading model: {model_name}")
     _download_checkpoint_from_url(checkpoint_url, ckpt_path)
-    st.toast(f"Model ready: {model_name}")
+    st.toast(f"🚀 Model ready: {model_name}")
+    model_state["checkpoint_ready"] = True
+    model_state["model_ready"] = True
+    activity_state[model_name] = model_state
+    st.session_state["_model_activity_logged"] = activity_state
     print(f"[MODEL] Downloaded checkpoint for model '{model_name}' to: {ckpt_path}")
     return ckpt_path
 
 
 def load_classifier_bundle(model_name: str) -> LoadedModelBundle:
-    print(f"[MODEL] Load model: {model_name}")
+    activity_state = st.session_state.get("_model_activity_logged", {})
+    model_state = activity_state.get(model_name, {})
+
     cfg = MODEL_REGISTRY[model_name]
+    if not model_state.get("load_model", False):
+        print(f"[MODEL] Load model: {model_name}")
+        model_state["load_model"] = True
+        activity_state[model_name] = model_state
+        st.session_state["_model_activity_logged"] = activity_state
+
     classifier = MODEL_CLASS_MAP[cfg["class_name"]](**cfg.get("kwargs", {}))
     ckpt_path = _ensure_checkpoint_file(model_name=model_name, checkpoint_file=cfg["checkpoint_file"])
     if not ckpt_path.exists():
@@ -470,7 +493,14 @@ def load_classifier_bundle(model_name: str) -> LoadedModelBundle:
     state = checkpoint.get("model_state", checkpoint)
     classifier.load_state_dict(state, strict=False)
     classifier.eval()
-    print(f"[MODEL] Ready: {model_name} ({ckpt_path})")
+    activity_state = st.session_state.get("_model_activity_logged", {})
+    model_state = activity_state.get(model_name, {})
+    if not model_state.get("model_ready", False):
+        print(f"[MODEL] Ready: {model_name} ({ckpt_path})")
+        st.toast(f"🚀 Model ready: {model_name}")
+        model_state["model_ready"] = True
+        activity_state[model_name] = model_state
+        st.session_state["_model_activity_logged"] = activity_state
     return LoadedModelBundle(
         model_name=model_name,
         classifier=classifier,

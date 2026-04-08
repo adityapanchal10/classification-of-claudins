@@ -114,6 +114,7 @@ if left_model != st.session_state.get("global_model_name"):
     st.rerun()
 
 if st.button("Run comparison", type="primary"):
+    print(f"[PAGE Compare] Run comparison A={left_model} B={right_model} idx={selected_idx}")
     embedder = get_embedder()
     sample_embedding = embeddings_all[selected_idx].unsqueeze(0)
     baseline_embedding = build_baseline_embeddings(embedder, seq_length)
@@ -141,3 +142,4 @@ if st.button("Run comparison", type="primary"):
                 plot_residue_boxplot(attn_df, "attention", f"Attention Weights — {model_name}", "Attention", key=f"cmp_attn_{slot}")
             else:
                 st.info("No attention visualization for this model.")
+    print("[PAGE Compare] Comparison done")
