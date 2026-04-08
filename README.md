@@ -1,6 +1,6 @@
 # Functional Classification of Claudins — Streamlit App
 
-A multi-page Streamlit application for classifying protein sequences using MSA Transformer (ESM-MSA-1b) embeddings and a family of trained classifiers. The app supports batch inference, per-residue explainability, side-by-side model comparison, and embedding distribution exploration.
+A multi-page Streamlit application for classifying claudin sequences using MSA Transformer (ESM-MSA-1b) embeddings and a family of trained classifiers. The app supports batch inference, per-residue explainability, side-by-side model comparison, and embedding distribution exploration.
 
 ---
 
@@ -10,8 +10,8 @@ A multi-page Streamlit application for classifying protein sequences using MSA T
 |---|---|
 | 🔮 **Predict** | Run inference on one or more sequences. Inspect any sequence with Integrated Gradients (IG) and attention heatmaps. Predict structure through the public ESMFold API and color it by residue importance. Results persist in session state for use in other pages. |
 | ⚖️ **Compare Models** | Select two models and compare their predictions and explainability side-by-side for any sequence already run on the Predict page (or new input). Uses normalised per-residue bar charts for IG scores and attention weights. |
-| 📊 **Data Exploration** | Visualise per-residue embedding distributions using PCA or raw-dimension analysis. Accepts pre-stored embeddings from the Predict page or a separately uploaded NPY/PT file. Filter sequences via a multiselect widget with sticky frosted-glass controls. |
-| ℹ️ **About Models** | Overview table of all registered models. Shows a `torchinfo` architecture summary and training checkpoint metrics (epoch, validation AUC, accuracy, F1) for the selected model. |
+| 📊 **Data Exploration** | Visualise per-residue embedding distributions using PCA. Uses pre-stored embeddings when available, or generates embeddings from the provided input sequences. Filter sequences via a multiselect widget with sticky frosted-glass controls and run exploration on demand. |
+| ℹ️ **About Models** | Overview table of all registered models. Shows a `torchinfo` architecture summary and training checkpoint metrics (saved epoch, validation AUC, accuracy, and loss curves) for the selected model. |
 
 ---
 
@@ -44,13 +44,13 @@ Checkpoints live in `checkpoints/`. Each `.pt` file stores the model weights and
 ## Project Structure
 
 ```
-app.py                           # Landing page, sidebar state initialisation
+Home.py                          # Landing page, sidebar state initialisation
 requirements.txt
 checkpoints/                    # Model checkpoint files (.pt) and ESM alphabet
 pages/
     1_🔮_Predict.py             # Inference, explainability, structure prediction
     2_⚖️_Compare_Models.py      # Side-by-side model comparison
-    3_📊_Data_Exploration.py    # PCA / raw-dim embedding visualisation
+    3_📊_Data_Exploration.py    # PCA embedding visualisation
     4_ℹ️_About_Models.py        # Model registry overview and checkpoint stats
 core/
     config.py                   # CLASS_MAP, MODEL_REGISTRY, path constants
@@ -86,15 +86,18 @@ Pages share data through `st.session_state`:
 | Residue heatmap (IG / attention) | Predict | Fixed 13 px cells, horizontal scroll, drag pan, double-click 1.5× zoom, fixed frosted-glass colorbar |
 | Per-residue bar chart (IG / attention) | Compare Models | Normalised to [−1, 1] or [0, 1]; diverging RdBu for IG, Blues for attention; theme-aware |
 | PCA residue boxplots + heatmap | Data Exploration | One box per sequence per residue; explained-variance table; theme-aware diverging heatmap |
-| Raw-dim distribution boxplots + mean heatmap | Data Exploration | Full embedding-dimension spread per residue |
 | Sequence summary scatter | Data Exploration | Mean norm vs. mean spread across sequences |
-| 3-D structure viewer | Predict | ESMFold API structure fetch; py3Dmol cartoon rendering colored by residue importance; PDB download |
-
-All Plotly charts switch colorscale automatically when the Streamlit theme changes (light ↔ dark). Data Exploration calls `st.rerun()` on theme change to refresh charts immediately.
+| 3-D structure viewer | Predict | ESMFold API structure fetch; py3Dmol rendering colored by residue importance; PDB download |
 
 ---
 
 ## Running the App
+
+Try out the app here: https://classification-of-claudins.streamlit.app/ 
+
+**OR**
+
+if you want to run locally:
 
 ```bash
 # 1. Create and activate a virtual environment
@@ -105,10 +108,11 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 # 3. Launch
-streamlit run app.py
+streamlit run Home.py
 ```
 
 The ESM MSA-1b model weights are downloaded automatically on first run via the `esm` library.  
+The trained classifier weights are stored on `GDrive` and fetched from there. Once fetched, all weights are stored locally and re-used.
 ESMFold structure prediction is fetched from the public API at `https://api.esmatlas.com/foldSequence/v1/pdb/` and is optional. Residue importance from IG is written into the structure viewer's B-factors for coloring.
 
 ---
