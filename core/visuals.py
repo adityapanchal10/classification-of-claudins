@@ -1,6 +1,7 @@
 import json
 import os
 import re
+from urllib.parse import quote
 import numpy as np
 import pandas as pd
 import plotly.colors
@@ -266,7 +267,33 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
     """
     
     wrapper_final = wrapper_html + colorbar_html
-    st.components.v1.html(wrapper_final, height=fig_h + 20, scrolling=False)
+    iframe_html = f"""
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <style>
+        html, body {{
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            background: transparent;
+        }}
+        html::-webkit-scrollbar, body::-webkit-scrollbar {{
+            display: none;
+            width: 0;
+            height: 0;
+        }}
+    </style>
+</head>
+<body>
+{wrapper_final}
+</body>
+</html>
+"""
+    st.iframe("data:text/html;charset=utf-8," + quote(iframe_html), height=fig_h + 20)
 
 
 def plot_importance(df, title: str):
@@ -625,7 +652,33 @@ def show_structure_viewer(pdb_path, residue_importance=None, style_mode: str = "
 </div>
 """
 
-        st.components.v1.html(combined_html, height=520, scrolling=False)
+        iframe_html = f"""
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <style>
+        html, body {{
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+            background: transparent;
+        }}
+        html::-webkit-scrollbar, body::-webkit-scrollbar {{
+            display: none;
+            width: 0;
+            height: 0;
+        }}
+    </style>
+</head>
+<body>
+{combined_html}
+</body>
+</html>
+"""
+        st.iframe("data:text/html;charset=utf-8," + quote(iframe_html), height=520)
 
 
 def visualize_sequence_residue_embeddings(
