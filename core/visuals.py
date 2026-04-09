@@ -702,7 +702,14 @@ def visualize_sequence_residue_embeddings(
     # Theme detection for colorscales
     theme_type = str(getattr(getattr(st.context, "theme", None), "type", "light")).lower()
     is_dark = theme_type == "dark"
-    embedding_heatmap_colorscale = "magma" if is_dark else "RdBu"
+    if is_dark:
+        embedding_heatmap_colorscale = [
+            [0.0, "#5f8f86"],
+            [0.5, "#2a3743"],
+            [1.0, "#86c58a"],
+        ]
+    else:
+        embedding_heatmap_colorscale = "RdBu"
     
     if hasattr(embeddings, "detach"):
         E = embeddings.detach().float().cpu().numpy()
@@ -830,7 +837,7 @@ def visualize_sequence_residue_embeddings(
                         pointpos=0,
                         marker=dict(
                             size=5,
-                            opacity=0.75,
+                            opacity=0.70,
                             color=seq_colors[seq % len(seq_colors)],
                         ),
                         line=dict(width=1),
