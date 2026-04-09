@@ -159,6 +159,16 @@ if st.session_state.get("run_data_exploration", False):
                 help="Select or deselect sequences to update the embedding distributions.",
             )
 
+            st.markdown(
+                "<p style='margin-top:-0.25rem; margin-bottom:0.7rem; color:#94a3b8; font-size:0.85rem;'>"
+                "The PCA plots are built only from the sequences selected above. If the selection is changed, the plots can "
+                "look different. For a decent comparison, keep the same selected list and use Plotly toggles to focus on "
+                "sequences of interest. Use a smaller subset when you want to closely compare a few similar sequences, so "
+                "the patterns are easier to see."
+                "</p>",
+                unsafe_allow_html=True,
+            )
+
             with st.columns([1, 5])[0]:
                 n_pcs = st.number_input(
                     "# of PCA components",
