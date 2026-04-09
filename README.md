@@ -8,10 +8,10 @@ A multi-page Streamlit application for classifying claudin sequences using MSA T
 
 | Page | Purpose |
 |---|---|
-| 🔮 **Predict** | Run inference on one or more sequences. Inspect any sequence with Integrated Gradients (IG) and attention heatmaps. Predict structure through the public ESMFold API and color it by residue importance. Results persist in session state for use in other pages. |
+| 🔮 **Predict** | Run inference on one or more sequences. Inspect any sequence with Integrated Gradients (IG) and attention heatmaps (for models using attention). Predict structure through the public ESMFold API and color it by residue importance. Results persist in session state for use in other pages. |
 | ⚖️ **Compare Models** | Select two models and compare their predictions and explainability side-by-side for any sequence already run on the Predict page (or new input). Uses normalised per-residue bar charts for IG scores and attention weights. |
 | 📊 **Data Exploration** | Visualise per-residue embedding distributions using PCA. Uses pre-stored embeddings when available, or generates embeddings from the provided input sequences. Filter sequences via a multiselect widget with sticky frosted-glass controls and run exploration on demand. |
-| ℹ️ **About Models** | Overview table of all registered models. Shows a `torchinfo` architecture summary and training checkpoint metrics (saved epoch, validation AUC, accuracy, and loss curves) for the selected model. |
+| ℹ️ **About Models** | Overview table of all registered models. Shows a `torchinfo` architecture summary and training checkpoint metrics (saved epoch, validation AUC, accuracy, loss, and % class error curves) for the selected model. |
 
 ---
 
@@ -37,14 +37,14 @@ Three-class channel-protein classification:
 | **Transformer Classifier (simple)** | Positional embedding add → TransformerEncoder → mean pooling → 2-layer MLP head | ✅ |
 | **Transformer Classifier (complex)** | Input projection → positional embedding → residual Conv1d blocks → attention pooling → MLP head | ✅ |
 
-Checkpoints live in `checkpoints/`. Each `.pt` file stores the model weights and optionally training metrics (`epoch`, `val_auc`, `val_acc`, `val_f1`).
+Checkpoints live in `checkpoints/`. Each `.pt` file stores the model weights and optionally training metrics (`epoch`, `val_auc`, `acc`, `loss`, and `% class errors`).
 
 ---
 
 ## Project Structure
 
 ```
-Home.py                          # Landing page, sidebar state initialisation
+Home.py                         # Landing page, sidebar state initialisation
 requirements.txt
 checkpoints/                    # Model checkpoint files (.pt) and ESM alphabet
 pages/
@@ -83,11 +83,11 @@ Pages share data through `st.session_state`:
 
 | Chart | Where | Details |
 |---|---|---|
-| Residue heatmap (IG / attention) | Predict | Fixed 13 px cells, horizontal scroll, drag pan, double-click 1.5× zoom, fixed frosted-glass colorbar |
+| Residue heatmap (IG / attention) | Predict | Fixed 13 px cells, horizontal scroll, drag pan, double-click 1.5× zoom, fixed transparent colorbar |
 | Per-residue bar chart (IG / attention) | Compare Models | Normalised to [−1, 1] or [0, 1]; diverging RdBu for IG, Blues for attention; theme-aware |
 | PCA residue boxplots + heatmap | Data Exploration | One box per sequence per residue; explained-variance table; theme-aware diverging heatmap |
 | Sequence summary scatter | Data Exploration | Mean norm vs. mean spread across sequences |
-| 3-D structure viewer | Predict | ESMFold API structure fetch; py3Dmol rendering colored by residue importance; PDB download |
+| 3-D structure viewer | Predict | ESMFold API structure fetch; py3Dmol rendering colored by residue contribution to the prediction; PDB download |
 
 ---
 
