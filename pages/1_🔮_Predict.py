@@ -12,6 +12,8 @@ from core.predict import build_prediction_table, predict_probabilities
 from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, global_sidebar, toast_once
 from core.visuals import plot_attention, plot_importance, plot_top_attributes, show_structure_viewer
 
+st.set_page_config(page_title="Predict", layout="wide", page_icon="🧬")
+
 global_sidebar()
 
 st.title("Predict")

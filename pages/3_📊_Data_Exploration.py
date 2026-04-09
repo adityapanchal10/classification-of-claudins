@@ -5,6 +5,8 @@ from core.io_utils import detect_input_dataframe, validate_sequences
 from core.ui import global_sidebar, toast_once
 from core.visuals import visualize_sequence_residue_embeddings
 
+st.set_page_config(page_title="Data Exploration", layout="wide", page_icon="🧬")
+
 
 def _infer_embedding_params(df_valid):
     seq_length = int(df_valid["length"].max())

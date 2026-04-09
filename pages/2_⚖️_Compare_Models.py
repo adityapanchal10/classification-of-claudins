@@ -9,6 +9,8 @@ from core.predict import predict_probabilities
 from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, global_sidebar, toast_once
 from core.visuals import plot_residue_boxplot
 
+st.set_page_config(page_title="Compare Models", layout="wide", page_icon="🧬")
+
 global_sidebar()
 
 
