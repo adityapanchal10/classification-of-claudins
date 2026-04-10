@@ -2,7 +2,7 @@ import streamlit as st
 
 from core.embeddings import get_embedder
 from core.io_utils import detect_input_dataframe, validate_sequences
-from core.ui import cache_log, global_sidebar, toast_once
+from core.ui import cache_log, global_sidebar, memory_log, toast_once
 from core.visuals import visualize_sequence_residue_embeddings
 
 st.set_page_config(page_title="Data Exploration", layout="wide", page_icon="🧬")
@@ -205,3 +205,4 @@ if run_exploration:
                             mode=viz_mode,
                             n_pcs=n_pcs,
                         )
+                    memory_log("explore.show_pca.done")

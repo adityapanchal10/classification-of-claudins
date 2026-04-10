@@ -11,7 +11,7 @@ from core.explainability import attention_dataframe, compute_ig_attributions, re
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
 from core.predict import build_prediction_table, predict_probabilities
-from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, toast_once
+from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, memory_log, toast_once
 from core.visuals import plot_attention, plot_importance, plot_top_attributes, show_structure_viewer
 
 st.set_page_config(page_title="Predict", layout="wide", page_icon="🧬")
@@ -73,6 +73,7 @@ if st.button("Run inference", type="primary"):
     pred_table = build_prediction_table(df_valid, preds, confs, probs)
 
     print(f"[PAGE Predict] Inference ready n_seq={len(df_valid)}")
+    memory_log("predict.run_inference.done")
     st.session_state.input_sequences_df = df_valid.copy()
     cache_log(f"Stored input_sequences_df rows={len(df_valid)}")
     st.session_state.generated_embeddings = embeddings.detach().to(torch.float16) if hasattr(embeddings, "detach") else embeddings
@@ -163,6 +164,7 @@ if (
         }
         st.session_state.predict_run["inspected_result"] = inspected_result
         cache_log("Stored predict_run.inspected_result")
+        memory_log("predict.inspect_sequence.done")
 
     if inspected_result is None:
         st.info("Select a sequence and click Inspect sequence to run explainability.")
@@ -220,6 +222,7 @@ if (
                 print(f"[PAGE Predict] ESMFold done path={pdb_path}")
                 st.session_state.predict_run["inspected_result"]["pdb_path"] = str(pdb_path)
                 cache_log(f"Stored predict_run.inspected_result.pdb_path={pdb_path}")
+                memory_log("predict.structure.done")
 
         stored_pdb_path = inspected_result.get("pdb_path")
         if stored_pdb_path:

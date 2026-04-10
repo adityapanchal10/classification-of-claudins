@@ -6,7 +6,7 @@ from core.explainability import attention_dataframe, compute_ig_attributions, re
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
 from core.predict import predict_probabilities
-from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, toast_once
+from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, memory_log, toast_once
 from core.visuals import plot_residue_boxplot
 
 st.set_page_config(page_title="Compare Models", layout="wide", page_icon="🧬")
@@ -146,3 +146,4 @@ if st.button("Run comparison", type="primary"):
             else:
                 st.info("No attention visualization for this model.")
     print("[PAGE Compare] Comparison done")
+    memory_log("compare.run_comparison.done")

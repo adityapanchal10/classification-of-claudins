@@ -1,5 +1,13 @@
 import streamlit as st
 import uuid
+import importlib
+import os
+
+try:
+    _psutil_spec = importlib.util.find_spec("psutil")
+    psutil = importlib.import_module("psutil") if _psutil_spec is not None else None
+except Exception:
+    psutil = None
 
 from core.config import MODEL_REGISTRY
 
@@ -7,6 +15,7 @@ from core.config import MODEL_REGISTRY
 DEFAULT_SEQ_LENGTH = 190
 DEFAULT_BATCH_SIZE = 64
 DEFAULT_IG_STEPS = 50
+DEFAULT_ENABLE_MEMORY_LOGS = False
 
 
 def app_header():
@@ -36,6 +45,34 @@ def cache_log(message: str, once_key: str | None = None):
         return
     st.session_state["_cache_log_last"] = full_message
     print(full_message)
+
+
+def memory_log(step: str):
+    if not bool(st.session_state.get("global_enable_memory_logs", DEFAULT_ENABLE_MEMORY_LOGS)):
+        return
+
+    trace = st.session_state.get("_cache_trace_current", "no-trace")
+    if psutil is not None:
+        try:
+            rss_bytes = psutil.Process(os.getpid()).memory_info().rss
+            total_bytes = psutil.virtual_memory().total
+            rss_mb = rss_bytes / (1024 * 1024)
+            total_mb = total_bytes / (1024 * 1024)
+
+            prev_rss_mb = st.session_state.get("_mem_log_prev_rss_mb")
+            delta_mb = 0.0 if prev_rss_mb is None else (rss_mb - prev_rss_mb)
+            st.session_state["_mem_log_prev_rss_mb"] = rss_mb
+
+            msg = f"[MEM][{trace}] {step} rss_mb={rss_mb:.1f}/{total_mb:.1f} delta_mb={delta_mb:+.1f}"
+        except Exception:
+            msg = f"[MEM][{trace}] {step} rss_mb=unavailable/unavailable delta_mb=unavailable"
+    else:
+        msg = f"[MEM][{trace}] {step} rss_mb=unavailable/unavailable delta_mb=unavailable"
+
+    if st.session_state.get("_mem_log_last") == msg:
+        return
+    st.session_state["_mem_log_last"] = msg
+    print(msg)
 
 
 def initialize_session_cache_state():
@@ -69,10 +106,45 @@ def global_sidebar():
         st.session_state["global_model_name"] = default_model
     if "global_ig_steps" not in st.session_state:
         st.session_state["global_ig_steps"] = DEFAULT_IG_STEPS
+    if "global_enable_memory_logs" not in st.session_state:
+        st.session_state["global_enable_memory_logs"] = DEFAULT_ENABLE_MEMORY_LOGS
 
     st.sidebar.header("Global settings")
     model_name = st.sidebar.selectbox("Model", model_options, key="global_model_name")
     ig_steps = st.sidebar.slider("Integrated Gradients steps", min_value=50, max_value=200, step=10, key="global_ig_steps")
+
+    st.sidebar.markdown(
+        "<hr style='margin:0.35rem 0 0 0; border:0; border-top:1px solid rgba(156,163,175,0.35);' />",
+        unsafe_allow_html=True,
+    )
+    st.sidebar.markdown("<p style='margin:0.6rem 0 0.1rem 0; font-size:0.68rem; color:#9CA3AF;'>Diagnostics</p>", unsafe_allow_html=True)
+    st.sidebar.markdown(
+        """
+        <style>
+        [data-testid="stSidebarUserContent"] .st-key-global_enable_memory_logs {
+            margin-top: -0.6rem;
+            margin-bottom: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+        [data-testid="stSidebarUserContent"] .st-key-global_enable_memory_logs [data-baseweb="checkbox"] > div {
+            transform: scale(0.82);
+            transform-origin: left center;
+        }
+        [data-testid="stSidebarUserContent"] .st-key-global_enable_memory_logs [data-testid="stCheckbox"] p {
+            font-size: 0.82rem;
+            color: #9CA3AF;
+            margin-top: 0.2rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.sidebar.checkbox(
+        "Enable memory logs",
+        key="global_enable_memory_logs",
+        help="Print minimal memory snapshots at major action completion points.",
+    )
     return model_name, DEFAULT_SEQ_LENGTH, DEFAULT_BATCH_SIZE, ig_steps
 
 
