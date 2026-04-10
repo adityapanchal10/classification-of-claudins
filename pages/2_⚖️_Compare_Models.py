@@ -24,9 +24,6 @@ ig_steps = st.session_state.get("global_ig_steps", 50)
 predict_run = st.session_state.get("predict_run")
 pre_stored_df = st.session_state.get("input_sequences_df", None)
 pre_stored_embeddings = st.session_state.get("generated_embeddings", None)
-cache_log(f"compare.predict_run {'hit' if predict_run is not None else 'miss'}", once_key=f"cmp_predict_run_{predict_run is not None}")
-cache_log(f"compare.input_sequences_df {'hit' if pre_stored_df is not None else 'miss'}", once_key=f"cmp_input_df_{pre_stored_df is not None}")
-cache_log(f"compare.generated_embeddings {'hit' if pre_stored_embeddings is not None else 'miss'}", once_key=f"cmp_emb_{pre_stored_embeddings is not None}")
 
 st.subheader("Sequence Input")
 df_valid = None
@@ -38,10 +35,6 @@ if pre_stored_df is not None:
     if use_pre_stored:
         df_valid = pre_stored_df.copy()
         embeddings_all = pre_stored_embeddings
-        if hasattr(embeddings_all, "shape"):
-            cache_log(f"compare using cached embeddings shape={tuple(embeddings_all.shape)}")
-        else:
-            cache_log("compare using cached embeddings")
     else:
         uploaded = st.file_uploader("Upload FASTA for comparison", type=["fasta", "fa", "faa", "txt"], key="cmp_fasta")
         text_value = st.text_area("Or paste FASTA / one-sequence-per-line text", height=140, key="cmp_text")

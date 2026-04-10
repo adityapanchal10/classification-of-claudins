@@ -32,8 +32,6 @@ elif last_theme != theme_type:
 # Check for pre-stored sequences and embeddings from Predict page
 pre_stored_df = st.session_state.get("input_sequences_df", None)
 pre_stored_embeddings = st.session_state.get("generated_embeddings", None)
-cache_log(f"explore.input_sequences_df {'hit' if pre_stored_df is not None else 'miss'}", once_key=f"exp_input_df_{pre_stored_df is not None}")
-cache_log(f"explore.generated_embeddings {'hit' if pre_stored_embeddings is not None else 'miss'}", once_key=f"exp_emb_{pre_stored_embeddings is not None}")
 
 # Sequence input section
 st.subheader("Sequence Input")
@@ -49,10 +47,6 @@ if pre_stored_df is not None:
     if use_pre_stored:
         df = pre_stored_df.copy()
         embeddings = pre_stored_embeddings
-        if hasattr(embeddings, "shape"):
-            cache_log(f"explore using cached embeddings shape={tuple(embeddings.shape)}")
-        else:
-            cache_log("explore using cached embeddings")
         using_pre_stored_data = True
     else:
         # Allow manual input override

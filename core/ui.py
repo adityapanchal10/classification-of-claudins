@@ -56,19 +56,6 @@ def initialize_session_cache_state():
         cache_log("Failed to clear st.cache_resource", once_key="cache_resource_clear_failed")
         pass
 
-    for key in (
-        "_predict_embedding_cache_key",
-        "_predict_embedding_cache_value",
-        "_predict_baseline_cache_key",
-        "_predict_baseline_cache_value",
-        "_compare_embedding_cache_key",
-        "_compare_embedding_cache_value",
-        "run_data_exploration",
-    ):
-        removed = st.session_state.pop(key, None)
-        if removed is not None:
-            cache_log(f"Cleared session key={key}")
-
     st.session_state["_session_initialized"] = True
     cache_log("Session cache initialized", once_key="session_cache_initialized")
 

@@ -32,9 +32,18 @@ with st.expander("Details", expanded=True):
     st.markdown(f"**Architecture**: {cfg['architecture']}")
     st.markdown(f"**Attention available**: {'Yes' if cfg['uses_attention'] else 'No'}")
 
-text_value = st.text_area("Enter Sequence(s) here:", height=180, placeholder=">seq1\nMKT...\n>seq2\nVVV...")
+text_value = st.text_area(
+    "Enter Sequence(s) here:",
+    height=180,
+    placeholder=">seq1\nMKT...\n>seq2\nVVV...",
+    key="predict_text_input",
+)
 st.markdown("**OR**")
-uploaded_file = st.file_uploader("Upload FASTA", type=["fasta", "fa", "faa", "txt"])
+uploaded_file = st.file_uploader(
+    "Upload FASTA",
+    type=["fasta", "fa", "faa", "txt"],
+    key="predict_upload_file",
+)
 
 if st.button("Run inference", type="primary"):
     print(f"[PAGE Predict] Run inference model={model_name}")
@@ -74,19 +83,14 @@ if st.button("Run inference", type="primary"):
     st.session_state.predict_run = {
         "model_name": model_name,
         "explain_idx": 0,
-        "preds": preds,
-        "confs": confs,
         "pred_table": pred_table,
         "inspected_result": None,
     }
-    cache_log("Stored predict_run (model, explain_idx, preds, confs, pred_table, inspected_result)")
+    cache_log("Stored predict_run (model, explain_idx, pred_table, inspected_result)")
 
 predict_run = st.session_state.get("predict_run")
 shared_df = st.session_state.get("input_sequences_df")
 shared_embeddings = st.session_state.get("generated_embeddings")
-cache_log(f"predict_run {'hit' if predict_run is not None else 'miss'}", once_key=f"predict_run_state_{predict_run is not None}")
-cache_log(f"input_sequences_df {'hit' if shared_df is not None else 'miss'}", once_key=f"input_df_state_{shared_df is not None}")
-cache_log(f"generated_embeddings {'hit' if shared_embeddings is not None else 'miss'}", once_key=f"emb_state_{shared_embeddings is not None}")
 if (
     predict_run
     and predict_run.get("model_name") == model_name
@@ -95,31 +99,16 @@ if (
 ):
     df_valid = shared_df.copy()
     embeddings = shared_embeddings
-    if hasattr(embeddings, "shape"):
-        cache_log(f"Using cached predict embeddings shape={tuple(embeddings.shape)}")
-    else:
-        cache_log("Using cached predict embeddings")
-    preds = predict_run.get("preds")
-    confs = predict_run.get("confs")
     pred_table = predict_run.get("pred_table")
-    cache_log(f"predict_run.preds {'hit' if preds is not None else 'miss'}", once_key=f"preds_state_{preds is not None}")
-    cache_log(f"predict_run.confs {'hit' if confs is not None else 'miss'}", once_key=f"confs_state_{confs is not None}")
-    cache_log(f"predict_run.pred_table {'hit' if pred_table is not None else 'miss'}", once_key=f"pred_table_state_{pred_table is not None}")
 
-    if preds is None or confs is None or pred_table is None:
+    if pred_table is None:
         bundle = load_classifier_bundle(model_name)
         preds, confs, probs, _ = predict_probabilities(bundle, embeddings, return_attention=False)
         pred_table = build_prediction_table(df_valid, preds, confs, probs)
-        st.session_state.predict_run["preds"] = preds
-        st.session_state.predict_run["confs"] = confs
         st.session_state.predict_run["pred_table"] = pred_table
-        cache_log("Stored missing predict_run fields (preds, confs, pred_table)")
+        cache_log("Stored missing predict_run field (pred_table)")
 
     inspected_result = predict_run.get("inspected_result")
-    cache_log(
-        f"predict_run.inspected_result {'hit' if inspected_result is not None else 'miss'}",
-        once_key=f"inspected_result_state_{inspected_result is not None}",
-    )
 
     st.subheader("Predictions")
     st.dataframe(pred_table, width='stretch')
@@ -183,7 +172,9 @@ if (
         trunc_seq = inspected_result["trunc_seq"]
         ig_df = inspected_result["ig_df"]
         attn_df = inspected_result.get("attn_df")
-        inspect_conf = inspected_result.get("inspect_conf", confs[explain_idx])
+        inspect_conf = inspected_result.get("inspect_conf")
+        if inspect_conf is None:
+            inspect_conf = float(pred_table.iloc[explain_idx]["confidence"])
 
         st.markdown(
             f"**Predicted class:** {pred_table.iloc[explain_idx]['predicted_class']}  |  "
