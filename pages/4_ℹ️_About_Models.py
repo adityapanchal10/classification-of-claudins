@@ -8,6 +8,7 @@ from core.models import load_classifier_bundle
 from core.ui import global_sidebar
 
 st.set_page_config(page_title="About Models", layout="wide", page_icon="🧬")
+st.logo("🧬")
 
 
 global_sidebar()

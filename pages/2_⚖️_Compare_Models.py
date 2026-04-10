@@ -10,6 +10,7 @@ from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, global_sidebar, toas
 from core.visuals import plot_residue_boxplot
 
 st.set_page_config(page_title="Compare Models", layout="wide", page_icon="🧬")
+st.logo("🧬")
 
 global_sidebar()
 

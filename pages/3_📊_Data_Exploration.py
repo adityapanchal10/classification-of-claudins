@@ -6,6 +6,7 @@ from core.ui import global_sidebar, toast_once
 from core.visuals import visualize_sequence_residue_embeddings
 
 st.set_page_config(page_title="Data Exploration", layout="wide", page_icon="🧬")
+st.logo("🧬")
 
 
 def _infer_embedding_params(df_valid):

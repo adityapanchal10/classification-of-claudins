@@ -13,6 +13,7 @@ from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, global_sidebar, toas
 from core.visuals import plot_attention, plot_importance, plot_top_attributes, show_structure_viewer
 
 st.set_page_config(page_title="Predict", layout="wide", page_icon="🧬")
+st.logo("🧬")
 
 global_sidebar()
 
