@@ -530,7 +530,7 @@ def show_structure_viewer(pdb_path, residue_importance=None, style_mode: str = "
     style_name = style_name_map.get(style_key, "stick")
     style_spec = {style_name: {}}
 
-    view = py3Dmol.view(width=900, height=700)
+    view = py3Dmol.view(width=900, height=600)
     view.addModel(pdb_text, "pdb")
     view.setStyle({}, style_spec)
     view.zoomTo()
@@ -646,7 +646,7 @@ def show_structure_viewer(pdb_path, residue_importance=None, style_mode: str = "
 """
 
         combined_html = f"""
-<div style="position: relative; width: 100%; height: 500px; background: transparent;">
+<div style="position: relative; width: 100%; height: 600px; background: transparent;">
 {html}
 {legend_html}
 </div>
@@ -678,7 +678,7 @@ def show_structure_viewer(pdb_path, residue_importance=None, style_mode: str = "
 </body>
 </html>
 """
-        st.iframe("data:text/html;charset=utf-8," + quote(iframe_html), height=520)
+        st.iframe("data:text/html;charset=utf-8," + quote(iframe_html), height=600)
 
 
 def visualize_sequence_residue_embeddings(
