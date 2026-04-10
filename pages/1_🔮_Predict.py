@@ -3,13 +3,15 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+import torch
 
+from core.config import MODEL_REGISTRY
 from core.embeddings import build_baseline_embeddings, get_embedder, infer_structure_with_esmfold
 from core.explainability import attention_dataframe, compute_ig_attributions, residue_importance_dataframe
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
 from core.predict import build_prediction_table, predict_probabilities
-from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, global_sidebar, toast_once
+from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, toast_once
 from core.visuals import plot_attention, plot_importance, plot_top_attributes, show_structure_viewer
 
 st.set_page_config(page_title="Predict", layout="wide", page_icon="🧬")
@@ -23,12 +25,12 @@ seq_length = DEFAULT_SEQ_LENGTH
 batch_size = DEFAULT_BATCH_SIZE
 ig_steps = st.session_state.get("global_ig_steps", 50)
 
-bundle = load_classifier_bundle(model_name)
+cfg = MODEL_REGISTRY[model_name]
 st.markdown(f"**Model:** {model_name}")
 with st.expander("Details", expanded=True):
-    st.markdown(f"**Description**: {bundle.description}")
-    st.markdown(f"**Architecture**: {bundle.architecture}")
-    st.markdown(f"**Attention available**: {'Yes' if bundle.uses_attention else 'No'}")
+    st.markdown(f"**Description**: {cfg['description']}")
+    st.markdown(f"**Architecture**: {cfg['architecture']}")
+    st.markdown(f"**Attention available**: {'Yes' if cfg['uses_attention'] else 'No'}")
 
 text_value = st.text_area("Enter Sequence(s) here:", height=180, placeholder=">seq1\nMKT...\n>seq2\nVVV...")
 st.markdown("**OR**")
@@ -47,55 +49,77 @@ if st.button("Run inference", type="primary"):
         st.error("No valid amino acid sequences were found.")
         st.stop()
 
-    embedding_cache_key = (
-        tuple(df_valid["sequence"].tolist()),
-        int(seq_length),
-        int(batch_size),
-    )
+    with st.spinner("Generating embeddings..."):
+        embedder = get_embedder()
+        embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
+        toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
+        embeddings = embedder.embed_sequences_per_residue(
+            df_valid["sequence"].tolist(),
+            seq_length=seq_length,
+            batch_size=batch_size,
+        )
 
-    cached_key = st.session_state.get("_predict_embedding_cache_key")
-    cached_embeddings = st.session_state.get("_predict_embedding_cache_value")
-    if cached_key == embedding_cache_key and cached_embeddings is not None:
-        embeddings = cached_embeddings
-        print("[PAGE Predict] Reusing cached embeddings")
-    else:
-        with st.spinner("Generating embeddings..."):
-            embedder = get_embedder()
-            embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
-            toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
-            embeddings = embedder.embed_sequences_per_residue(
-                df_valid["sequence"].tolist(),
-                seq_length=seq_length,
-                batch_size=batch_size,
-            )
-        st.session_state["_predict_embedding_cache_key"] = embedding_cache_key
-        st.session_state["_predict_embedding_cache_value"] = embeddings
-
-    preds, confs, probs, attn = predict_probabilities(bundle, embeddings)
+    bundle = load_classifier_bundle(model_name)
+    preds, confs, probs, _ = predict_probabilities(bundle, embeddings, return_attention=False)
     pred_table = build_prediction_table(df_valid, preds, confs, probs)
-    print(f"[PAGE Predict] Inference done n_seq={len(df_valid)}")
+
+    print(f"[PAGE Predict] Inference ready n_seq={len(df_valid)}")
     st.session_state.input_sequences_df = df_valid.copy()
-    st.session_state.generated_embeddings = embeddings  # Store reference, no need to clone
+    cache_log(f"Stored input_sequences_df rows={len(df_valid)}")
+    st.session_state.generated_embeddings = embeddings.detach().to(torch.float16) if hasattr(embeddings, "detach") else embeddings
+    if hasattr(st.session_state.generated_embeddings, "shape"):
+        cache_log(f"Stored predict embeddings shape={tuple(st.session_state.generated_embeddings.shape)}")
+    else:
+        cache_log("Stored predict embeddings")
     st.session_state.predict_run = {
         "model_name": model_name,
-        "df_valid": df_valid.copy(),
-        "embeddings": embeddings,  # Store reference, not a copy
+        "explain_idx": 0,
         "preds": preds,
         "confs": confs,
-        "attn": attn,
-        "pred_table": pred_table.copy(),
-        "explain_idx": 0,
+        "pred_table": pred_table,
         "inspected_result": None,
     }
+    cache_log("Stored predict_run (model, explain_idx, preds, confs, pred_table, inspected_result)")
 
 predict_run = st.session_state.get("predict_run")
-if predict_run and predict_run.get("model_name") == model_name:
-    df_valid = predict_run["df_valid"]
-    embeddings = predict_run["embeddings"]
-    preds = predict_run["preds"]
-    confs = predict_run["confs"]
-    attn = predict_run["attn"]
-    pred_table = predict_run["pred_table"]
+shared_df = st.session_state.get("input_sequences_df")
+shared_embeddings = st.session_state.get("generated_embeddings")
+cache_log(f"predict_run {'hit' if predict_run is not None else 'miss'}", once_key=f"predict_run_state_{predict_run is not None}")
+cache_log(f"input_sequences_df {'hit' if shared_df is not None else 'miss'}", once_key=f"input_df_state_{shared_df is not None}")
+cache_log(f"generated_embeddings {'hit' if shared_embeddings is not None else 'miss'}", once_key=f"emb_state_{shared_embeddings is not None}")
+if (
+    predict_run
+    and predict_run.get("model_name") == model_name
+    and shared_df is not None
+    and shared_embeddings is not None
+):
+    df_valid = shared_df.copy()
+    embeddings = shared_embeddings
+    if hasattr(embeddings, "shape"):
+        cache_log(f"Using cached predict embeddings shape={tuple(embeddings.shape)}")
+    else:
+        cache_log("Using cached predict embeddings")
+    preds = predict_run.get("preds")
+    confs = predict_run.get("confs")
+    pred_table = predict_run.get("pred_table")
+    cache_log(f"predict_run.preds {'hit' if preds is not None else 'miss'}", once_key=f"preds_state_{preds is not None}")
+    cache_log(f"predict_run.confs {'hit' if confs is not None else 'miss'}", once_key=f"confs_state_{confs is not None}")
+    cache_log(f"predict_run.pred_table {'hit' if pred_table is not None else 'miss'}", once_key=f"pred_table_state_{pred_table is not None}")
+
+    if preds is None or confs is None or pred_table is None:
+        bundle = load_classifier_bundle(model_name)
+        preds, confs, probs, _ = predict_probabilities(bundle, embeddings, return_attention=False)
+        pred_table = build_prediction_table(df_valid, preds, confs, probs)
+        st.session_state.predict_run["preds"] = preds
+        st.session_state.predict_run["confs"] = confs
+        st.session_state.predict_run["pred_table"] = pred_table
+        cache_log("Stored missing predict_run fields (preds, confs, pred_table)")
+
+    inspected_result = predict_run.get("inspected_result")
+    cache_log(
+        f"predict_run.inspected_result {'hit' if inspected_result is not None else 'miss'}",
+        once_key=f"inspected_result_state_{inspected_result is not None}",
+    )
 
     st.subheader("Predictions")
     st.dataframe(pred_table, width='stretch')
@@ -115,48 +139,42 @@ if predict_run and predict_run.get("model_name") == model_name:
         st.session_state.predict_run["explain_idx"] = explain_idx
 
         row = df_valid.iloc[explain_idx]
-        sample_embedding = embeddings[explain_idx].unsqueeze(0)
-        sample_pred = int(preds[explain_idx])
-        inspect_cache_key = (
-            model_name,
-            int(explain_idx),
-            int(ig_steps),
-            str(row["sequence"]),
-            int(sample_pred),
+        bundle = load_classifier_bundle(model_name)
+        embedder = get_embedder()
+        sample_embedding = embedder.embed_sequences_per_residue(
+            [row["sequence"]],
+            seq_length=seq_length,
+            batch_size=1,
         )
-        cached_inspected_result = st.session_state.predict_run.get("inspected_result")
-        if cached_inspected_result is not None and cached_inspected_result.get("cache_key") == inspect_cache_key:
-            print("[PAGE Predict] Reusing cached inspect result")
-        else:
-            embedder = get_embedder()
-            baseline_cache_key = (getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S"), int(seq_length))
-            cached_baseline_key = st.session_state.get("_predict_baseline_cache_key")
-            cached_baseline = st.session_state.get("_predict_baseline_cache_value")
-            if cached_baseline_key == baseline_cache_key and cached_baseline is not None:
-                baseline_embedding = cached_baseline
-                print("[PAGE Predict] Reusing cached baseline embedding")
-            else:
-                baseline_embedding = build_baseline_embeddings(embedder, seq_length)
-                st.session_state["_predict_baseline_cache_key"] = baseline_cache_key
-                st.session_state["_predict_baseline_cache_value"] = baseline_embedding
+        sample_preds, sample_confs, _, sample_attn = predict_probabilities(bundle, sample_embedding)
+        baseline_embedding = build_baseline_embeddings(embedder, seq_length)
+        residue_attrs, _ = compute_ig_attributions(
+            bundle.classifier,
+            sample_embedding,
+            baseline_embedding,
+            int(sample_preds[0]),
+            n_steps=ig_steps,
+            internal_batch_size=max(4, min(8, ig_steps)),
+        )
+        trunc_seq = row["sequence"][: sample_embedding.shape[1]]
+        ig_df = residue_importance_dataframe(trunc_seq, residue_attrs.squeeze(0).numpy()[: len(trunc_seq)])
+        attn_df = None
+        if bundle.uses_attention and sample_attn is not None:
+            attn_vec = sample_attn[0].numpy()[: len(trunc_seq)]
+            attn_df = attention_dataframe(trunc_seq, attn_vec)
+        inspected_result = {
+            "explain_idx": explain_idx,
+            "seq_id": row["seq_id"],
+            "sequence": row["sequence"],
+            "trunc_seq": trunc_seq,
+            "ig_df": ig_df,
+            "attn_df": attn_df,
+            "inspect_conf": float(sample_confs[0]),
+            "pdb_path": None,
+        }
+        st.session_state.predict_run["inspected_result"] = inspected_result
+        cache_log("Stored predict_run.inspected_result")
 
-            residue_attrs, delta = compute_ig_attributions(
-                bundle.classifier,
-                sample_embedding,
-                baseline_embedding,
-                sample_pred,
-                n_steps=ig_steps,
-            )
-            trunc_seq = row["sequence"][: sample_embedding.shape[1]]
-            ig_df = residue_importance_dataframe(trunc_seq, residue_attrs.squeeze(0).numpy()[: len(trunc_seq)])
-            st.session_state.predict_run["inspected_result"] = {
-                "cache_key": inspect_cache_key,
-                "explain_idx": explain_idx,
-                "trunc_seq": trunc_seq,
-                "ig_df": ig_df,
-            }
-
-    inspected_result = st.session_state.predict_run.get("inspected_result")
     if inspected_result is None:
         st.info("Select a sequence and click Inspect sequence to run explainability.")
     else:
@@ -164,10 +182,12 @@ if predict_run and predict_run.get("model_name") == model_name:
         row = df_valid.iloc[explain_idx]
         trunc_seq = inspected_result["trunc_seq"]
         ig_df = inspected_result["ig_df"]
+        attn_df = inspected_result.get("attn_df")
+        inspect_conf = inspected_result.get("inspect_conf", confs[explain_idx])
 
         st.markdown(
             f"**Predicted class:** {pred_table.iloc[explain_idx]['predicted_class']}  |  "
-            f"**Confidence:** {confs[explain_idx]:.3f}"
+            f"**Confidence:** {inspect_conf:.3f}"
         )
 
         top_pos = ig_df[ig_df["score"] > 0].sort_values("score", ascending=False).head(5).copy()
@@ -183,9 +203,7 @@ if predict_run and predict_run.get("model_name") == model_name:
         st.markdown(f"**Residue Importance via Integrated Gradients** - {row['seq_id']}")
         plot_importance(ig_df, "")
 
-        if bundle.uses_attention and attn is not None:
-            attn_vec = attn[explain_idx].numpy()[: len(trunc_seq)]
-            attn_df = attention_dataframe(trunc_seq, attn_vec)
+        if cfg["uses_attention"] and attn_df is not None:
             st.markdown(f"**Attention Weights** - {row['seq_id']}")
             plot_attention(attn_df, "")
         else:
@@ -200,12 +218,22 @@ if predict_run and predict_run.get("model_name") == model_name:
             key=f"structure_style_{explain_idx}",
         )
         if st.button("Predict structure with ESMFold"):
-            print(f"[PAGE Predict] ESMFold start seq_id={row['seq_id']}")
+            structure_sequence = inspected_result.get("sequence", row["sequence"])
+            structure_seq_id = inspected_result.get("seq_id", row["seq_id"])
+            print(f"[PAGE Predict] ESMFold start seq_id={structure_seq_id}")
             with st.spinner("Running ESMFold..."):
-                pdb_path = infer_structure_with_esmfold(row["sequence"], Path(tempfile.gettempdir()) / "protein_sequence_app_v2")
+                pdb_path = infer_structure_with_esmfold(structure_sequence, Path(tempfile.gettempdir()) / "protein_sequence_app_v2")
             if pdb_path is None:
                 st.error("ESMFold inference is unavailable in this environment. Configure dependencies and retry.")
             else:
                 print(f"[PAGE Predict] ESMFold done path={pdb_path}")
+                st.session_state.predict_run["inspected_result"]["pdb_path"] = str(pdb_path)
+                cache_log(f"Stored predict_run.inspected_result.pdb_path={pdb_path}")
+
+        stored_pdb_path = inspected_result.get("pdb_path")
+        if stored_pdb_path:
+            pdb_path = Path(stored_pdb_path)
+            if pdb_path.exists():
+                structure_seq_id = inspected_result.get("seq_id", row["seq_id"])
                 show_structure_viewer(pdb_path, residue_importance=ig_df, style_mode=structure_style)
-                st.download_button("Download PDB", pdb_path.read_bytes(), file_name=f"{row['seq_id']}.pdb", mime="chemical/x-pdb")
+                st.download_button("Download PDB", pdb_path.read_bytes(), file_name=f"{structure_seq_id}.pdb", mime="chemical/x-pdb")

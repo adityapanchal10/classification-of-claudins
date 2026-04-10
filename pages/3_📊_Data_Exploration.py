@@ -2,7 +2,7 @@ import streamlit as st
 
 from core.embeddings import get_embedder
 from core.io_utils import detect_input_dataframe, validate_sequences
-from core.ui import global_sidebar, toast_once
+from core.ui import cache_log, global_sidebar, toast_once
 from core.visuals import visualize_sequence_residue_embeddings
 
 st.set_page_config(page_title="Data Exploration", layout="wide", page_icon="🧬")
@@ -32,12 +32,11 @@ elif last_theme != theme_type:
 # Check for pre-stored sequences and embeddings from Predict page
 pre_stored_df = st.session_state.get("input_sequences_df", None)
 pre_stored_embeddings = st.session_state.get("generated_embeddings", None)
+cache_log(f"explore.input_sequences_df {'hit' if pre_stored_df is not None else 'miss'}", once_key=f"exp_input_df_{pre_stored_df is not None}")
+cache_log(f"explore.generated_embeddings {'hit' if pre_stored_embeddings is not None else 'miss'}", once_key=f"exp_emb_{pre_stored_embeddings is not None}")
 
 # Sequence input section
 st.subheader("Sequence Input")
-
-if "run_data_exploration" not in st.session_state:
-    st.session_state["run_data_exploration"] = False
 
 # Initialize variables
 df = None
@@ -49,7 +48,11 @@ if pre_stored_df is not None:
     use_pre_stored = st.checkbox("Use pre-stored data", value=True)
     if use_pre_stored:
         df = pre_stored_df.copy()
-        embeddings = pre_stored_embeddings  # Store reference, no need to clone
+        embeddings = pre_stored_embeddings
+        if hasattr(embeddings, "shape"):
+            cache_log(f"explore using cached embeddings shape={tuple(embeddings.shape)}")
+        else:
+            cache_log("explore using cached embeddings")
         using_pre_stored_data = True
     else:
         # Allow manual input override
@@ -63,21 +66,17 @@ else:
     if uploaded is not None or text_value.strip():
         df = validate_sequences(detect_input_dataframe(text_value, uploaded))
 
-if using_pre_stored_data:
-    st.session_state["run_data_exploration"] = True
-elif st.button("Run exploration", type="primary"):
+run_exploration = using_pre_stored_data or st.button("Run exploration", type="primary")
+if run_exploration and not using_pre_stored_data:
     print("[PAGE Explore] Run exploration")
-    st.session_state["run_data_exploration"] = True
 
-if st.session_state.get("run_data_exploration", False):
+if run_exploration:
     if df is None or df.empty:
-        st.session_state["run_data_exploration"] = False
         st.warning("Provide sequence input via textbox or file upload.")
         st.stop()
 
     df_valid = df[df["is_valid"]].copy() if "is_valid" in df.columns else df.copy()
     if df_valid.empty:
-        st.session_state["run_data_exploration"] = False
         st.error("No valid amino acid sequences were found.")
         st.stop()
 
@@ -97,6 +96,7 @@ if st.session_state.get("run_data_exploration", False):
                     seq_length=seq_length,
                     batch_size=batch_size,
                 )
+                cache_log("explore cache miss for embeddings; generated fresh embeddings")
                 st.caption(f"Embedding params: seq_length={seq_length}, batch_size={batch_size}")
                 print(f"[PAGE Explore] Embeddings ready n_seq={len(df_valid)}")
         except Exception as e:

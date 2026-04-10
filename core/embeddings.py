@@ -122,7 +122,7 @@ class MSAEmbedder:
             print(f"[EMBED] Start n_seq={len(sequences)} seq_len={seq_length} batch={batch_size}")
         sequences = self._clean_sequences(sequences)
         sequences = self.pad_or_truncate(sequences, seq_length) if seq_length is not None else sequences
-        all_embeddings = []
+        all_embeddings = None
         total_batches = (len(sequences) + batch_size - 1) // batch_size
         for batch_idx in range(total_batches):
             start = batch_idx * batch_size
@@ -133,11 +133,27 @@ class MSAEmbedder:
             batch_tokens = batch_tokens.to(self.device)
             with torch.no_grad():
                 results = self.model(batch_tokens, repr_layers=[12], return_contacts=False)
-            token_embeddings = results["representations"][12][:, :, 1:, :]
-            all_embeddings.append(token_embeddings.cpu())
-        embeddings = torch.cat(all_embeddings, dim=1).squeeze()
-        if embeddings.ndim == 2:
-            embeddings = embeddings.unsqueeze(0)
+            token_embeddings = results["representations"][12]
+
+            # Convert model output to shape (batch, residues, embed_dim).
+            if token_embeddings.ndim == 4 and token_embeddings.shape[1] == 1:
+                batch_embeddings = token_embeddings[:, 0, 1:, :]
+            elif token_embeddings.ndim == 4 and token_embeddings.shape[0] == 1:
+                batch_embeddings = token_embeddings[0, :, 1:, :]
+            elif token_embeddings.ndim == 3:
+                batch_embeddings = token_embeddings[:, 1:, :]
+            else:
+                raise RuntimeError(f"Unexpected embedding shape from model: {tuple(token_embeddings.shape)}")
+
+            batch_embeddings = batch_embeddings.cpu()
+
+            if all_embeddings is None:
+                n_seq, n_res, embed_dim = len(sequences), batch_embeddings.shape[1], batch_embeddings.shape[2]
+                all_embeddings = torch.empty((n_seq, n_res, embed_dim), dtype=batch_embeddings.dtype)
+
+            all_embeddings[start:end] = batch_embeddings
+
+        embeddings = all_embeddings
         if is_baseline:
             print(f"[EMBED] Done Baseline embeddings shape={tuple(embeddings.shape)}")
         else:
@@ -145,7 +161,6 @@ class MSAEmbedder:
         return embeddings
 
 
-@st.cache_resource(show_spinner=False)
 def get_embedder(model_name: str = EMBEDDER_MODEL_NAME):
     return MSAEmbedder(model_name=model_name)
 

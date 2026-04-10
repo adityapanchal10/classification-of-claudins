@@ -4,13 +4,13 @@ import torch
 from core.config import CLASS_MAP, DEFAULT_CLASSES
 
 
-def predict_probabilities(bundle, embeddings):
+def predict_probabilities(bundle, embeddings, return_attention=True):
     print(f"[PRED] Start model={bundle.model_name} n_seq={int(embeddings.shape[0])}")
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = bundle.classifier.to(device)
-    x = embeddings.to(device)
+    x = embeddings.to(device=device, dtype=torch.float32)
     with torch.no_grad():
-        if bundle.uses_attention:
+        if bundle.uses_attention and return_attention:
             logits, attn = model(x, return_attn=True)
         else:
             logits = model(x)

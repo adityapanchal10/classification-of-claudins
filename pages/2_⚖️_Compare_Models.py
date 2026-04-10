@@ -6,7 +6,7 @@ from core.explainability import attention_dataframe, compute_ig_attributions, re
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
 from core.predict import predict_probabilities
-from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, global_sidebar, toast_once
+from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, toast_once
 from core.visuals import plot_residue_boxplot
 
 st.set_page_config(page_title="Compare Models", layout="wide", page_icon="🧬")
@@ -24,6 +24,9 @@ ig_steps = st.session_state.get("global_ig_steps", 50)
 predict_run = st.session_state.get("predict_run")
 pre_stored_df = st.session_state.get("input_sequences_df", None)
 pre_stored_embeddings = st.session_state.get("generated_embeddings", None)
+cache_log(f"compare.predict_run {'hit' if predict_run is not None else 'miss'}", once_key=f"cmp_predict_run_{predict_run is not None}")
+cache_log(f"compare.input_sequences_df {'hit' if pre_stored_df is not None else 'miss'}", once_key=f"cmp_input_df_{pre_stored_df is not None}")
+cache_log(f"compare.generated_embeddings {'hit' if pre_stored_embeddings is not None else 'miss'}", once_key=f"cmp_emb_{pre_stored_embeddings is not None}")
 
 st.subheader("Sequence Input")
 df_valid = None
@@ -34,7 +37,11 @@ if pre_stored_df is not None:
     use_pre_stored = st.checkbox("Use pre-stored data", value=True, key="cmp_use_pre_stored")
     if use_pre_stored:
         df_valid = pre_stored_df.copy()
-        embeddings_all = pre_stored_embeddings  # Store reference, no need to clone
+        embeddings_all = pre_stored_embeddings
+        if hasattr(embeddings_all, "shape"):
+            cache_log(f"compare using cached embeddings shape={tuple(embeddings_all.shape)}")
+        else:
+            cache_log("compare using cached embeddings")
     else:
         uploaded = st.file_uploader("Upload FASTA for comparison", type=["fasta", "fa", "faa", "txt"], key="cmp_fasta")
         text_value = st.text_area("Or paste FASTA / one-sequence-per-line text", height=140, key="cmp_text")
@@ -56,17 +63,7 @@ if df_valid.empty:
     st.warning("No valid amino acid sequences are available for comparison.")
     st.stop()
 
-compare_embedding_cache_key = (
-    tuple(df_valid["sequence"].tolist()),
-    int(seq_length),
-    int(batch_size),
-)
-cached_compare_key = st.session_state.get("_compare_embedding_cache_key")
-cached_compare_embeddings = st.session_state.get("_compare_embedding_cache_value")
-if cached_compare_key == compare_embedding_cache_key and cached_compare_embeddings is not None:
-    embeddings_all = cached_compare_embeddings
-    print("[PAGE Compare] Reusing cached embeddings")
-elif embeddings_all is None:
+if embeddings_all is None:
     with st.spinner("Generating embeddings for comparison..."):
         embedder = get_embedder()
         embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
@@ -76,8 +73,7 @@ elif embeddings_all is None:
             seq_length=seq_length,
             batch_size=batch_size,
         )
-    st.session_state["_compare_embedding_cache_key"] = compare_embedding_cache_key
-    st.session_state["_compare_embedding_cache_value"] = embeddings_all
+    cache_log("compare cache miss for embeddings; generated fresh embeddings")
 
 if not hasattr(embeddings_all, "shape") or len(embeddings_all.shape) != 3:
     st.error("Expected embeddings shape (num_sequences, num_residues, embedding_dim).")
@@ -126,10 +122,6 @@ with col_model_a:
 with col_model_b:
     right_model = st.selectbox("Model B", models, index=min(0, len(models)-1), key="cmp_b")
 
-if left_model != st.session_state.get("global_model_name"):
-    st.session_state["global_model_name"] = left_model
-    st.rerun()
-
 if st.button("Run comparison", type="primary"):
     print(f"[PAGE Compare] Run comparison A={left_model} B={right_model} idx={selected_idx}")
     embedder = get_embedder()
@@ -146,6 +138,7 @@ if st.button("Run comparison", type="primary"):
             baseline_embedding,
             int(preds[0]),
             n_steps=ig_steps,
+            internal_batch_size=max(4, min(8, ig_steps)),
         )
         trunc_seq = selected_row["sequence"][: sample_embedding.shape[1]]
         ig_df = residue_importance_dataframe(trunc_seq, residue_attrs.squeeze(0).numpy()[: len(trunc_seq)])

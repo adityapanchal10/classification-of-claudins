@@ -4,13 +4,13 @@ import torch
 from captum.attr import IntegratedGradients
 
 
-def compute_ig_attributions(model, inputs, baseline, target_class, n_steps=50, device=None):
+def compute_ig_attributions(model, inputs, baseline, target_class, n_steps=50, device=None, internal_batch_size=8):
     print(f"[XAI] IG start target={target_class} steps={n_steps}")
     if device is None:
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = model.to(device).eval()
-    inputs = inputs.to(device).requires_grad_(True)
-    baseline = torch.zeros_like(inputs) if baseline is None else baseline.to(device)
+    inputs = inputs.to(device=device, dtype=torch.float32).requires_grad_(True)
+    baseline = torch.zeros_like(inputs) if baseline is None else baseline.to(device=device, dtype=torch.float32)
 
     def forward_fn(inp):
         return model(inp)
@@ -21,6 +21,7 @@ def compute_ig_attributions(model, inputs, baseline, target_class, n_steps=50, d
         baselines=baseline,
         target=target_class,
         n_steps=n_steps,
+        internal_batch_size=internal_batch_size,
         return_convergence_delta=True,
         method='gausslegendre',
     )
