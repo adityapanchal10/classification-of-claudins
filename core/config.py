@@ -65,11 +65,12 @@ MODEL_REGISTRY = {
         "checkpoint_file": "transformer_mlp_classifier.pt",
         "kwargs": {
             "input_dim": 768,
+            "proj_dim": 128,
             "num_classes": 3,
-            "num_heads": 8,
-            "num_attention_blocks": 2,
-            "dropout": 0.1,
-            "max_residues": 1024,
+            "num_heads": 4,
+            "num_attention_blocks": 1,
+            "dropout": 0.4,
+            "max_seq_len": 220,
         },
     },
     "Simple Linear Classifier": {
