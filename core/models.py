@@ -13,14 +13,14 @@ from core.config import CHECKPOINTS_DIR, MODEL_REGISTRY, resolve_checkpoint_url
 
 
 class ResidualMLPBlock(nn.Module):
-    def __init__(self, dim, hidden_dim=None, dropout=0.1):
+    def __init__(self, dim, hidden_dim=None, dropout=0.4):
         super().__init__()
-        hidden_dim = hidden_dim or dim * 4
-        self.norm = nn.LayerNorm(dim)
-        self.fc1 = nn.Linear(dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, dim)
+        hidden_dim = hidden_dim or dim * 2
+        self.norm    = nn.LayerNorm(dim)
+        self.fc1     = nn.Linear(dim, hidden_dim)
+        self.fc2     = nn.Linear(hidden_dim, dim)
         self.dropout = nn.Dropout(dropout)
-        self.act = nn.GELU()
+        self.act     = nn.GELU()
 
     def forward(self, x):
         h = self.norm(x)
@@ -33,17 +33,20 @@ class ResidualMLPBlock(nn.Module):
 
 
 class SingleSequenceAttentionBlock(nn.Module):
-    def __init__(self, dim, num_heads=8, dropout=0.1):
+    def __init__(self, dim, num_heads=4, dropout=0.4):
         super().__init__()
-        self.norm = nn.LayerNorm(dim)
+        self.norm      = nn.LayerNorm(dim)
         self.self_attn = nn.MultiheadAttention(
-            embed_dim=dim, num_heads=num_heads, dropout=dropout, batch_first=True
+            embed_dim=dim,
+            num_heads=num_heads,
+            dropout=dropout,
+            batch_first=True
         )
         self.dropout = nn.Dropout(dropout)
-        self.ffn = ResidualMLPBlock(dim, hidden_dim=dim * 4, dropout=dropout)
+        self.ffn     = ResidualMLPBlock(dim, hidden_dim=dim * 2, dropout=dropout)
 
     def forward(self, x):
-        x_norm = self.norm(x)
+        x_norm   = self.norm(x)
         attn_out, _ = self.self_attn(x_norm, x_norm, x_norm)
         x = x + self.dropout(attn_out)
         x = self.ffn(x)
@@ -68,56 +71,90 @@ class AttentionPool(nn.Module):
 class TransformerMLPClassifier(nn.Module):
     def __init__(
         self,
-        input_dim=768,
+        input_dim=768,          # ESM embedding dim — fixed
+        proj_dim=128,
         num_classes=3,
-        num_heads=8,
-        num_attention_blocks=2,
-        dropout=0.1,
-        max_residues=1024,
+        num_heads=4,
+        num_attention_blocks=1,
+        dropout=0.4,
+        max_seq_len=220,
     ):
         super().__init__()
-        self.input_proj = nn.Linear(input_dim, input_dim)
-        self.pos_emb = nn.Embedding(max_residues, input_dim)
-        self.emb_norm_before = nn.LayerNorm(input_dim)
-        self.dropout = nn.Dropout(dropout)
-        self.attention_blocks = nn.ModuleList(
-            [
-                SingleSequenceAttentionBlock(input_dim, num_heads=num_heads, dropout=dropout)
-                for _ in range(num_attention_blocks)
-            ]
+
+        # ── Stage 1: Project ESM embeddings down to a manageable size ─────────
+        self.input_proj = nn.Sequential(
+            nn.Linear(input_dim, proj_dim),   # 768 → 128
+            nn.LayerNorm(proj_dim),
+            nn.Dropout(dropout)
         )
-        self.emb_norm_after = nn.LayerNorm(input_dim)
-        self.residue_pool = AttentionPool(input_dim)
-        self.fusion = nn.Sequential(
-            nn.LayerNorm(input_dim * 3),
-            nn.Linear(input_dim * 3, input_dim),
+
+        # ── Stage 2: Positional embeddings (now 128-dim, not 768-dim) ─────────
+        self.pos_emb = nn.Embedding(max_seq_len, proj_dim)
+
+        self.emb_norm_before = nn.LayerNorm(proj_dim)
+        self.dropout         = nn.Dropout(dropout)
+
+        # ── Stage 3: Single attention block  ───────────────────────────
+        self.attention_blocks = nn.ModuleList([
+            SingleSequenceAttentionBlock(
+                dim=proj_dim,
+                num_heads=num_heads,
+                dropout=dropout
+            )
+            for _ in range(num_attention_blocks)
+        ])
+
+        self.emb_norm_after = nn.LayerNorm(proj_dim)
+
+        # ── Stage 4: Attention pooling ────────────────────────────────────────
+        self.residue_pool = AttentionPool(proj_dim)
+
+        # ── Stage 5: Lightweight classifier head ──────────────────────────────
+        self.head = nn.Sequential(
+            nn.LayerNorm(proj_dim),
+            nn.Linear(proj_dim, proj_dim // 2),   # 128 → 64
             nn.GELU(),
             nn.Dropout(dropout),
-            ResidualMLPBlock(input_dim, hidden_dim=input_dim * 4, dropout=dropout),
-            nn.LayerNorm(input_dim),
+            nn.Linear(proj_dim // 2, proj_dim // 4),  # 64 → 32
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(proj_dim // 4, num_classes)  # 32 → 3
         )
-        self.classifier = nn.Linear(input_dim, num_classes)
 
     def forward(self, x, return_attn=False):
-        _, r, _ = x.shape
-        device = x.device
-        x = self.input_proj(x)
-        res_ids = torch.arange(r, device=device)
-        pos_emb = self.pos_emb(res_ids)[None, :, :]
+        """
+        x: (B, R, D) — batch, residues, ESM embedding dim (768)
+        """
+        B, R, D = x.shape
+        device  = x.device
+
+        # Project 768 → 128
+        x = self.input_proj(x)                          # (B, R, 128)
+
+        # Add positional embeddings
+        res_ids = torch.arange(R, device=device)
+        pos_emb = self.pos_emb(res_ids)[None, :, :]     # (1, R, 128)
         x = x + pos_emb
+
+        # Pre-norm + dropout
         x = self.emb_norm_before(x)
         x = self.dropout(x)
+
+        # Attention block(s)
         for block in self.attention_blocks:
             x = block(x)
-        x = self.emb_norm_after(x)
-        pooled, residue_attn = self.residue_pool(x)
-        mean_repr = x.mean(dim=1)
-        max_repr = x.amax(dim=1)
-        fused = torch.cat([pooled, mean_repr, max_repr], dim=-1)
-        fused = self.fusion(fused)
-        logits = self.classifier(fused)
+
+        x = self.emb_norm_after(x)                      # (B, R, 128)
+
+        # Attention pooling → single vector per sequence
+        pooled, residue_attn = self.residue_pool(x)     # (B, 128)
+
+        # Classify
+        logits = self.head(pooled)                       # (B, 3)
+
         if return_attn:
             return logits, residue_attn
+
         return logits
 
 
