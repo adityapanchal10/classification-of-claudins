@@ -28,7 +28,7 @@ def _load_json_mapping(env_var_name: str) -> dict[str, str]:
 
 
 CHECKPOINT_GDRIVE_URLS = {
-    "Transformer + MLP Classifier": "https://drive.google.com/file/d/1UOdvJvt60M7lpjtxMvu4dwiep4jfKEk3/view?usp=sharing",
+    "Transformer + MLP Classifier": "https://drive.google.com/file/d/1UOdvJvt60M7lpjtxMvu4dwiep4jfKEk3/view?usp=drive_link",
     "Simple Linear Classifier": "https://drive.google.com/file/d/1yAw3_8LBGx7wkwY_GRGPPrmMWqkRrs-k/view?usp=drive_link",
     "Simple CNN Classifier": "https://drive.google.com/file/d/1lALilrt0OBFKXvzRTNcwOm_rgplkNTFF/view?usp=drive_link",
     "Transformer Classifier (simple)": "https://drive.google.com/file/d/1Zsrj8FiF1yk_W-MCPeSuyNAycJZU6zas/view?usp=drive_link",
