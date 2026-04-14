@@ -456,7 +456,7 @@ def _download_checkpoint_from_url(url: str, destination: Path) -> None:
     try:
         if "drive.google.com" in url:
             gdown = importlib.import_module("gdown")
-            gdown.download(url=url, output=str(temp_path), quiet=False, fuzzy=True)
+            gdown.download(url=url, output=str(temp_path), quiet=False)
         else:
             raise RuntimeError("Only Google Drive checkpoint URLs are supported in this setup.")
         temp_path.replace(destination)
