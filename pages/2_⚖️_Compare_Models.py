@@ -1,4 +1,5 @@
 import streamlit as st
+import torch
 
 from core.config import CLASS_MAP, MODEL_REGISTRY
 from core.embeddings import build_baseline_embeddings, get_embedder
@@ -118,7 +119,7 @@ with col_model_b:
 if st.button("Run comparison", type="primary"):
     print(f"[PAGE Compare] Run comparison A={left_model} B={right_model} idx={selected_idx}")
     embedder = get_embedder()
-    sample_embedding = embeddings_all[selected_idx].unsqueeze(0)
+    sample_embedding = embeddings_all[selected_idx].unsqueeze(0).to(torch.float32)
     baseline_embedding = build_baseline_embeddings(embedder, seq_length)
 
     cols = st.columns(2)

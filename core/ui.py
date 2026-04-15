@@ -109,9 +109,19 @@ def global_sidebar():
     if "global_enable_memory_logs" not in st.session_state:
         st.session_state["global_enable_memory_logs"] = DEFAULT_ENABLE_MEMORY_LOGS
 
+    previous_model = st.session_state.get("_prev_model_name")
+
     st.sidebar.header("Global settings")
     model_name = st.sidebar.selectbox("Model", model_options, key="global_model_name")
     ig_steps = st.sidebar.slider("Integrated Gradients steps", min_value=50, max_value=200, step=10, key="global_ig_steps")
+
+    # When the classifier changes, discard stale model-specific results.
+    # Embeddings and input data are model-independent (from ESM) and kept.
+    if previous_model is not None and model_name != previous_model:
+        for key in ("predict_run",):
+            st.session_state.pop(key, None)
+        cache_log(f"Model changed {previous_model} -> {model_name}; cleared prediction state")
+    st.session_state["_prev_model_name"] = model_name
 
     st.sidebar.markdown(
         "<hr style='margin:0.35rem 0 0 0; border:0; border-top:1px solid rgba(156,163,175,0.35);' />",

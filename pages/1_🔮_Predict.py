@@ -130,13 +130,14 @@ if (
 
         row = df_valid.iloc[explain_idx]
         bundle = load_classifier_bundle(model_name)
-        embedder = get_embedder()
-        sample_embedding = embedder.embed_sequences_per_residue(
-            [row["sequence"]],
-            seq_length=seq_length,
-            batch_size=1,
-        )
+
+        # Reuse the already-computed embeddings instead of re-running the
+        # expensive ESM model for a single sequence.
+        sample_embedding = embeddings[explain_idx].unsqueeze(0).to(torch.float32)
+
         sample_preds, sample_confs, _, sample_attn = predict_probabilities(bundle, sample_embedding)
+
+        embedder = get_embedder()
         baseline_embedding = build_baseline_embeddings(embedder, seq_length)
         residue_attrs, _ = compute_ig_attributions(
             bundle.classifier,

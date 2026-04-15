@@ -161,22 +161,50 @@ class MSAEmbedder:
         return embeddings
 
 
-def get_embedder(model_name: str = EMBEDDER_MODEL_NAME):
-    return MSAEmbedder(model_name=model_name)
+def get_embedder(model_name: str = EMBEDDER_MODEL_NAME) -> MSAEmbedder:
+    """Return a session-scoped embedder singleton.
+
+    The heavy ESM model is kept in ``st.session_state`` so it survives across
+    Streamlit reruns without being re-loaded from disk every time.  If the
+    requested *model_name* differs from the cached one the old instance is
+    released first so memory is freed before the new one is allocated.
+    """
+    cached: MSAEmbedder | None = st.session_state.get("_embedder_instance")
+    if cached is not None and cached.model_name == model_name:
+        return cached
+
+    # Release previous instance before allocating a new one.
+    if cached is not None:
+        del cached
+        st.session_state.pop("_embedder_instance", None)
+        st.session_state.pop("_baseline_cache", None)
+        import gc; gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        print(f"[EMBED] Released previous embedder")
+
+    embedder = MSAEmbedder(model_name=model_name)
+    st.session_state["_embedder_instance"] = embedder
+    return embedder
 
 
 def build_baseline_embeddings(embedder: MSAEmbedder, seq_len: int) -> torch.Tensor:
     """Create baseline embeddings using zero-padded sequence representation.
     The baseline represents "no information" for Integrated Gradients attribution.
+
+    Results are cached per *seq_len* in session state so the (expensive)
+    embedding call only happens once per sequence length.
     """
-    # Create a padding-only sequence (all dashes), embed it to get baseline signal
+    cache: dict = st.session_state.get("_baseline_cache", {})
+    if seq_len in cache:
+        print(f"[EMBED] Baseline cache hit seq_len={seq_len}")
+        return cache[seq_len]
+
     padding_seq = ["-" * seq_len]
     baseline_embedding = embedder.embed_sequences_per_residue(padding_seq, seq_length=seq_len, batch_size=1, is_baseline=True)
-    # print(f"Baseline embedding shape: {baseline_embedding.shape}")
+    cache[seq_len] = baseline_embedding
+    st.session_state["_baseline_cache"] = cache
     return baseline_embedding
-    # baseline = torch.full((1, 1, seq_len), embedder.alphabet.padding_idx, dtype=torch.long)
-    # baseline_embedding = embedder.embed_sequences_per_residue(baseline, seq_length=seq_len, batch_size=1)
-    # print(f"Padding index: {embedder.alphabet.padding_idx}")
 
 
 def infer_structure_with_esmfold(sequence: str, out_dir: Path) -> Optional[Path]:

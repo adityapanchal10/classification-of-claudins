@@ -491,7 +491,7 @@ def _ensure_checkpoint_file(model_name: str, checkpoint_file: str) -> Path:
     return ckpt_path
 
 
-def load_classifier_bundle(model_name: str) -> LoadedModelBundle:
+def _load_classifier_bundle_from_disk(model_name: str) -> LoadedModelBundle:
     cfg = MODEL_REGISTRY[model_name]
     print(f"[MODEL] Load model: {model_name}")
 
@@ -504,9 +504,16 @@ def load_classifier_bundle(model_name: str) -> LoadedModelBundle:
         )
     checkpoint = torch.load(ckpt_path, weights_only=False, map_location="cpu")
     state = checkpoint.get("model_state", checkpoint)
-    classifier.load_state_dict(state, strict=False)
+
+    # Validate that the checkpoint keys actually match the model.
+    result = classifier.load_state_dict(state, strict=False)
+    if result.missing_keys:
+        print(f"[MODEL] WARNING {model_name}: missing keys in checkpoint: {result.missing_keys}")
+    if result.unexpected_keys:
+        print(f"[MODEL] WARNING {model_name}: unexpected keys in checkpoint: {result.unexpected_keys}")
+
     classifier.eval()
-    print(f"[MODEL] Ready: {model_name} ({ckpt_path})")
+    print(f"[MODEL] Ready: {model_name} params={sum(p.numel() for p in classifier.parameters())} ({ckpt_path.name})")
     return LoadedModelBundle(
         model_name=model_name,
         classifier=classifier,
@@ -514,3 +521,32 @@ def load_classifier_bundle(model_name: str) -> LoadedModelBundle:
         description=cfg["description"],
         architecture=cfg["architecture"],
     )
+
+
+_MAX_CACHED_CLASSIFIERS = 2
+
+
+def load_classifier_bundle(model_name: str) -> LoadedModelBundle:
+    """Return a classifier bundle, reusing the session-cached instance when possible.
+
+    Classifiers are lightweight (~1-5 MB) so we keep up to
+    ``_MAX_CACHED_CLASSIFIERS`` in ``st.session_state`` (enough for the
+    Compare page which needs two at once).  When the limit is exceeded the
+    oldest entries are evicted first.
+    """
+    cache: dict[str, LoadedModelBundle] = st.session_state.get("_classifier_cache", {})
+    if model_name in cache:
+        print(f"[MODEL] Cache hit: {model_name}")
+        return cache[model_name]
+
+    # Evict oldest entries when the cache is full.
+    while len(cache) >= _MAX_CACHED_CLASSIFIERS:
+        oldest = next(iter(cache))
+        del cache[oldest]
+        import gc; gc.collect()
+        print(f"[MODEL] Evicted cached bundle: {oldest}")
+
+    bundle = _load_classifier_bundle_from_disk(model_name)
+    cache[model_name] = bundle
+    st.session_state["_classifier_cache"] = cache
+    return bundle
