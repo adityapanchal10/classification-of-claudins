@@ -175,13 +175,13 @@ def get_embedder(model_name: str = EMBEDDER_MODEL_NAME) -> MSAEmbedder:
 
     # Release previous instance before allocating a new one.
     if cached is not None:
-        del cached
         st.session_state.pop("_embedder_instance", None)
         st.session_state.pop("_baseline_cache", None)
+        del cached
         import gc; gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
-        print(f"[EMBED] Released previous embedder")
+        print("[EMBED] Released previous embedder")
 
     embedder = MSAEmbedder(model_name=model_name)
     st.session_state["_embedder_instance"] = embedder

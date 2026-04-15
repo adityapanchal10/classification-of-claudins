@@ -542,10 +542,10 @@ def load_classifier_bundle(model_name: str) -> LoadedModelBundle:
     # Evict oldest entries when the cache is full.
     while len(cache) >= _MAX_CACHED_CLASSIFIERS:
         oldest = next(iter(cache))
-        del cache[oldest]
-        import gc; gc.collect()
+        cache.pop(oldest)
         print(f"[MODEL] Evicted cached bundle: {oldest}")
 
+    import gc; gc.collect()
     bundle = _load_classifier_bundle_from_disk(model_name)
     cache[model_name] = bundle
     st.session_state["_classifier_cache"] = cache

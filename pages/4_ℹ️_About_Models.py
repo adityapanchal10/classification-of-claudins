@@ -56,19 +56,30 @@ cfg = MODEL_REGISTRY[selected_model]
 checkpoint_path = CHECKPOINTS_DIR / cfg["checkpoint_file"]
 
 if checkpoint_path.exists():
+    # Only extract the lightweight scalar metrics — avoid keeping the full
+    # checkpoint (which includes optimizer state and can be 100+ MB) in memory.
     checkpoint = torch.load(checkpoint_path, weights_only=False, map_location="cpu")
+    metrics = {
+        "epoch": checkpoint.get("epoch"),
+        "val_auc": checkpoint.get("val_auc"),
+        "val_loss": checkpoint.get("val_loss"),
+        "val_acc": checkpoint.get("val_acc"),
+    }
+    del checkpoint
+    import gc; gc.collect()
 
     col1, col2, col3, col4 = st.columns(4)
 
-    col1.metric("Saved Epoch", checkpoint.get("epoch", "N/A") + 1)
+    raw_epoch = metrics["epoch"]
+    col1.metric("Saved Epoch", (raw_epoch + 1) if raw_epoch is not None else "N/A")
     
-    val_auc = checkpoint.get("val_auc", None)
+    val_auc = metrics["val_auc"]
     col2.metric("Validation AUC", f"{val_auc:.3f}" if val_auc is not None else "N/A")
     
-    val_loss = checkpoint.get("val_loss", None)
+    val_loss = metrics["val_loss"]
     col3.metric("Validation Loss", f"{val_loss:.3f}" if val_loss is not None else "N/A")
     
-    val_acc = checkpoint.get("val_acc", None)
+    val_acc = metrics["val_acc"]
     if val_acc is not None:
         col4.metric("Validation Accuracy", f"{val_acc:.2f}%")
     else:
