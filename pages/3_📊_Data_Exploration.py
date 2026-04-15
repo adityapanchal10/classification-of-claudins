@@ -11,7 +11,7 @@ st.logo("🧬")
 
 def _infer_embedding_params(df_valid):
     seq_length = int(df_valid["length"].max())
-    batch_size = len(df_valid)
+    batch_size = min(len(df_valid), 32)
 
     return seq_length, batch_size
 
