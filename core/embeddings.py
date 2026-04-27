@@ -115,6 +115,52 @@ class MSAEmbedder:
             processed.append(seq[:seq_length] if len(seq) > seq_length else seq.ljust(seq_length, pad_char))
         return processed
 
+    
+    def embed_msa(self, sequences, seq_length=190, max_msa_depth=600):
+        """
+        Embed all sequences from ONE MSA file together (true MSA mode).
+        Column attention operates across all sequences simultaneously.
+
+        Args:
+            sequences    : list of aligned sequences (all from the same MSA file)
+            seq_length   : pad/truncate target length
+            max_msa_depth: max sequences per forward pass (GPU memory limit)
+
+        Returns:
+            Tensor of shape (N, seq_length, 768)
+        """
+        sequences = self._clean_sequences(sequences)
+        sequences = self.pad_or_truncate(sequences, seq_length) if seq_length is not None else sequences
+        N = len(sequences)
+        print(f"[EMBED] Start MSA Embedding n_seq={N} seq_len={seq_length}")
+
+        all_embeddings = []
+
+        for start in range(0, N, max_msa_depth):
+            chunk = sequences[start: start + max_msa_depth]
+
+            # Wrap all chunk sequences as a single MSA input
+            msa_input = [(f'seq{start + j}', seq) for j, seq in enumerate(chunk)]
+
+            # batch_converter: tokens shape → (1, depth, seq_len+1), +1 for BOS
+            _, _, batch_tokens = self.batch_converter([msa_input])
+            batch_tokens = batch_tokens.to(self.device)
+
+            with torch.no_grad():
+                results = self.model(batch_tokens, repr_layers=[12], return_contacts=False)
+
+            # Extract representations: (1, depth, seq_len+1, 768)
+            token_emb = results["representations"][12]
+            token_emb = token_emb[:, :, 1:, :]    # Remove BOS → (1, depth, seq_len, 768)
+            token_emb = token_emb.squeeze(0)       # → (depth, seq_len, 768)
+
+            all_embeddings.append(token_emb.cpu())
+
+        output_embeddings = torch.cat(all_embeddings, dim=0)
+        assert len(output_embeddings.shape) == 3, f"Unexpected shape: {output_embeddings.shape}"
+        print(f"[EMBED] Done shape={tuple(output_embeddings.shape)}")
+        return output_embeddings  # (N, seq_len, 768)
+    
     def embed_sequences_per_residue(self, sequences, seq_length=190, batch_size=32, is_baseline=False):
         if is_baseline:
             print(f"[EMBED] Generating baseline embeddings seq_len={seq_length}")
@@ -188,8 +234,8 @@ def get_embedder(model_name: str = EMBEDDER_MODEL_NAME) -> MSAEmbedder:
     return embedder
 
 
-def build_baseline_embeddings(embedder: MSAEmbedder, seq_len: int) -> torch.Tensor:
-    """Create baseline embeddings using zero-padded sequence representation.
+def build_baseline_embeddings(seq_len: int, embedding_dim: int = 768) -> torch.Tensor:
+    """Create baseline embeddings using zero values.
     The baseline represents "no information" for Integrated Gradients attribution.
 
     Results are cached per *seq_len* in session state so the (expensive)
@@ -200,8 +246,7 @@ def build_baseline_embeddings(embedder: MSAEmbedder, seq_len: int) -> torch.Tens
         print(f"[EMBED] Baseline cache hit seq_len={seq_len}")
         return cache[seq_len]
 
-    padding_seq = ["-" * seq_len]
-    baseline_embedding = embedder.embed_sequences_per_residue(padding_seq, seq_length=seq_len, batch_size=1, is_baseline=True)
+    baseline_embedding = torch.zeros(1, seq_len, embedding_dim)
     cache[seq_len] = baseline_embedding
     st.session_state["_baseline_cache"] = cache
     return baseline_embedding

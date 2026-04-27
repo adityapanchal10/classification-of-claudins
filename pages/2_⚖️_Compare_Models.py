@@ -62,10 +62,9 @@ if embeddings_all is None:
         embedder = get_embedder()
         embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
         toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
-        embeddings_all = embedder.embed_sequences_per_residue(
+        embeddings_all = embedder.embed_msa(
             df_valid["sequence"].tolist(),
             seq_length=seq_length,
-            batch_size=batch_size,
         )
     cache_log("compare cache miss for embeddings; generated fresh embeddings")
 
@@ -118,9 +117,8 @@ with col_model_b:
 
 if st.button("Run comparison", type="primary"):
     print(f"[PAGE Compare] Run comparison A={left_model} B={right_model} idx={selected_idx}")
-    embedder = get_embedder()
     sample_embedding = embeddings_all[selected_idx].unsqueeze(0).to(torch.float32)
-    baseline_embedding = build_baseline_embeddings(embedder, seq_length)
+    baseline_embedding = build_baseline_embeddings(seq_length)
 
     cols = st.columns(2)
     for slot, (col, model_name) in enumerate(zip(cols, [left_model, right_model])):

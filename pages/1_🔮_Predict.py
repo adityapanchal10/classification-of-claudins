@@ -62,10 +62,9 @@ if st.button("Run inference", type="primary"):
         embedder = get_embedder()
         embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
         toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
-        embeddings = embedder.embed_sequences_per_residue(
+        embeddings = embedder.embed_msa(
             df_valid["sequence"].tolist(),
             seq_length=seq_length,
-            batch_size=batch_size,
         )
 
     bundle = load_classifier_bundle(model_name)
@@ -137,8 +136,7 @@ if (
 
         sample_preds, sample_confs, _, sample_attn = predict_probabilities(bundle, sample_embedding)
 
-        embedder = get_embedder()
-        baseline_embedding = build_baseline_embeddings(embedder, seq_length)
+        baseline_embedding = build_baseline_embeddings(seq_length)
         residue_attrs, _ = compute_ig_attributions(
             bundle.classifier,
             sample_embedding,
