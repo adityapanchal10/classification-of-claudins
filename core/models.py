@@ -121,7 +121,7 @@ class TransformerMLPClassifier(nn.Module):
             nn.Linear(proj_dim // 4, num_classes)  # 32 → 3
         )
 
-    def forward(self, x, return_attn=False):
+    def forward(self, x, return_attn=False, return_pooled=False):
         """
         x: (B, R, D) — batch, residues, ESM embedding dim (768)
         """
@@ -150,12 +150,16 @@ class TransformerMLPClassifier(nn.Module):
         pooled, residue_attn = self.residue_pool(x)     # (B, 128)
 
         # Classify
-        logits = self.head(pooled)                       # (B, 3)
+        class_logits = self.head(pooled)                # (B, 3)
 
+        outputs = [class_logits]
+
+        if return_pooled:
+            outputs.append(pooled)
         if return_attn:
-            return logits, residue_attn
+            outputs.append(residue_attn)
 
-        return logits
+        return tuple(outputs) if len(outputs) > 1 else outputs[0]
 
 
 class SimpleLinearClassifier(nn.Module):
