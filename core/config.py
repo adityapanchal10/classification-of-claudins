@@ -70,7 +70,7 @@ MODEL_REGISTRY = {
             "num_heads": 4,
             "num_attention_blocks": 1,
             "dropout": 0.4,
-            "max_seq_len": 220,
+            "seq_len": 190,
         },
     },
     "Simple Linear Classifier": {

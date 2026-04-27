@@ -77,7 +77,7 @@ class TransformerMLPClassifier(nn.Module):
         num_heads=4,
         num_attention_blocks=1,
         dropout=0.4,
-        max_seq_len=220,
+        seq_len=220,
     ):
         super().__init__()
 
@@ -89,7 +89,7 @@ class TransformerMLPClassifier(nn.Module):
         )
 
         # ── Stage 2: Positional embeddings (now 128-dim, not 768-dim) ─────────
-        self.pos_emb = nn.Embedding(max_seq_len, proj_dim)
+        self.pos_emb = nn.Embedding(seq_len, proj_dim)
 
         self.emb_norm_before = nn.LayerNorm(proj_dim)
         self.dropout         = nn.Dropout(dropout)
