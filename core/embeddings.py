@@ -60,11 +60,11 @@ def _load_embedder_from_checkpoints(model_name: str):
 
     state_dict = torch.load(state_path, map_location="cpu", weights_only=False)
     alphabet = torch.load(alphabet_path, map_location="cpu", weights_only=False)
-    model_data = {
-        "args": _msa_model_args_from_state_dict(state_dict, alphabet),
-        "model": state_dict,
-    }
-    model, _ = esm.pretrained.load_model_and_alphabet_core(model_name, model_data, regression_data=None)
+    # Build the model directly and load saved weights WITHOUT going through
+    # esm.pretrained.load_model_and_alphabet_core.
+    args = _msa_model_args_from_state_dict(state_dict, alphabet)
+    model = esm.MSATransformer(args, alphabet)
+    model.load_state_dict(state_dict)
     return model, alphabet
 
 

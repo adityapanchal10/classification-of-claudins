@@ -58,7 +58,11 @@ checkpoint_path = CHECKPOINTS_DIR / cfg["checkpoint_file"]
 if checkpoint_path.exists():
     # Only extract the lightweight scalar metrics — avoid keeping the full
     # checkpoint (which includes optimizer state and can be 100+ MB) in memory.
-    checkpoint = torch.load(checkpoint_path, weights_only=False, map_location="cpu")
+    try:
+        checkpoint = torch.load(checkpoint_path, weights_only=False, map_location="cpu")
+    except Exception as exc:
+        st.error(f"Could not load checkpoint '{checkpoint_path.name}': {exc}")
+        st.stop()
     metrics = {
         "epoch": checkpoint.get("epoch"),
         "val_auc": checkpoint.get("val_auc"),
