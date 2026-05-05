@@ -29,6 +29,7 @@ def _load_json_mapping(env_var_name: str) -> dict[str, str]:
 
 CHECKPOINT_GDRIVE_URLS = {
     "Transformer + MLP Classifier": "https://drive.google.com/file/d/1D7u7Ta4_VhkrPxQ8W8rBj0T43dMKcz-9/view?usp=drive_link",
+    "Transformer + MLP Classifier 2": "https://drive.google.com/file/d/1-xF_CQJZDk7HI1BOK6Re_ktT3fZY7nnk/view?usp=sharing",
     "Simple Linear Classifier": "https://drive.google.com/file/d/1yAw3_8LBGx7wkwY_GRGPPrmMWqkRrs-k/view?usp=drive_link",
     "Simple CNN Classifier": "https://drive.google.com/file/d/1lALilrt0OBFKXvzRTNcwOm_rgplkNTFF/view?usp=drive_link",
     "Transformer Classifier (simple)": "https://drive.google.com/file/d/1Zsrj8FiF1yk_W-MCPeSuyNAycJZU6zas/view?usp=drive_link",
@@ -63,6 +64,22 @@ MODEL_REGISTRY = {
         "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
         "uses_attention": True,
         "checkpoint_file": "transformer_mlp_classifier.pt",
+        "kwargs": {
+            "input_dim": 768,
+            "proj_dim": 128,
+            "num_classes": 3,
+            "num_heads": 4,
+            "num_attention_blocks": 1,
+            "dropout": 0.4,
+            "seq_len": 190,
+        },
+    },
+    "Transformer + MLP Classifier 2": {
+        "class_name": "Transformer + MLP Classifier",
+        "description": "Attention model with positional embeddings and fused pooled sequence features.",
+        "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
+        "uses_attention": True,
+        "checkpoint_file": "transformer_mlp_classifier_2.pt",
         "kwargs": {
             "input_dim": 768,
             "proj_dim": 128,

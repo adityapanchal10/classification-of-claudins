@@ -32,6 +32,7 @@ Three-class channel-protein classification:
 | Model | Architecture summary | Attention |
 |---|---|---|
 | **Transformer + MLP Classifier** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
+| **Transformer + MLP Classifier 2** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
 | **Simple Linear Classifier** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head | ❌ |
 | **Simple CNN Classifier** | LayerNorm → parallel Conv2d (kernels 3/4/5) → ReLU → global max pooling → concat → dropout → linear head | ❌ |
 | **Transformer Classifier (simple)** | Positional embedding add → TransformerEncoder → mean pooling → 2-layer MLP head | ✅ |
