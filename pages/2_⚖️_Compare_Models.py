@@ -103,12 +103,12 @@ selected_idx = st.radio(
     "Select sequence",
     options=sequence_options,
     index=preselected_idx,
-    format_func=lambda i: f"{df_valid.iloc[i]['seq_id']} ({df_valid.iloc[i]['length']} aa)",
+    format_func=lambda i: f"{df_valid.iloc[i]['description']} ({df_valid.iloc[i]['length']} aa)",
     key="cmp_selected_sequence_idx",
 )
 
 selected_row = df_valid.iloc[selected_idx]
-st.caption(f"Selected: {selected_row['seq_id']}")
+st.caption(f"Selected: {selected_row['description']}")
 st.code(selected_row["sequence"], language="text")
 
 st.subheader("Model Selection")

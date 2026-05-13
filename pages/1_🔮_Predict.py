@@ -190,7 +190,7 @@ if (
             "**Select sequence to inspect**",
             options=list(range(len(df_valid))),
             index=min(predict_run.get("explain_idx", 0), len(df_valid) - 1),
-            format_func=lambda i: f"{df_valid.iloc[i]['seq_id']} ({df_valid.iloc[i]['length']} aa)",
+            format_func=lambda i: f"{df_valid.iloc[i]['description']} ({df_valid.iloc[i]['length']} aa)",
         )
         inspect_clicked = st.form_submit_button("Inspect sequence", type="primary")
 
@@ -236,7 +236,7 @@ if (
                 attn_df = attention_dataframe(trunc_seq, attn_vec)
         inspected_result = {
             "explain_idx": explain_idx,
-            "seq_id": row["seq_id"],
+            "seq_id": row["description"],
             "sequence": row["sequence"],
             "trunc_seq": trunc_seq,
             "ig_df": ig_df,
@@ -275,11 +275,11 @@ if (
             top_attrs["contribution"] = "Neutral"
         plot_top_attributes(top_attrs)
 
-        st.markdown(f"**Residue Importance via Integrated Gradients** - {row['seq_id']}")
+        st.markdown(f"**Residue Importance via Integrated Gradients** - {row['description']}")
         plot_importance(ig_df, "")
 
         if cfg["uses_attention"] and attn_df is not None:
-            st.markdown(f"**Attention Weights** - {row['seq_id']}")
+            st.markdown(f"**Attention Weights** - {row['description']}")
             plot_attention(attn_df, "")
         else:
             st.info("Attention visualization is not available for this model.")
@@ -294,7 +294,7 @@ if (
         )
         if st.button("Predict structure with ESMFold"):
             structure_sequence = inspected_result.get("sequence", row["sequence"])
-            structure_seq_id = inspected_result.get("seq_id", row["seq_id"])
+            structure_seq_id = inspected_result.get("description", row["description"])
             print(f"[PAGE Predict] ESMFold start seq_id={structure_seq_id}")
             with st.spinner("Running ESMFold..."):
                 pdb_path = infer_structure_with_esmfold(structure_sequence, Path(tempfile.gettempdir()) / "protein_sequence_app_v2")
@@ -310,6 +310,6 @@ if (
         if stored_pdb_path:
             pdb_path = Path(stored_pdb_path)
             if pdb_path.exists():
-                structure_seq_id = inspected_result.get("seq_id", row["seq_id"])
+                structure_seq_id = inspected_result.get("description", row["description"])
                 show_structure_viewer(pdb_path, residue_importance=ig_df, style_mode=structure_style)
                 st.download_button("Download PDB", pdb_path.read_bytes(), file_name=f"{structure_seq_id}.pdb", mime="chemical/x-pdb")

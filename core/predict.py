@@ -172,10 +172,11 @@ def predict_probabilities(bundle, embeddings, return_attention=True):
 
 def build_prediction_table(df_valid, preds, confs, probs):
     out = df_valid.copy().reset_index(drop=True)
-    # remove columns: description, sequence, length, is_valid, invalid_chars
-    out = out.drop(columns=["description", "sequence", "length", "is_valid", "invalid_chars"], errors="ignore")
+    # remove columns: sequence, length, is_valid, invalid_chars
+    out = out.drop(columns=["sequence", "length", "is_valid", "invalid_chars"], errors="ignore")
     out["predicted_class"] = [CLASS_MAP[int(i)] for i in preds]
     out["confidence"] = confs
     for idx, cls_name in enumerate(DEFAULT_CLASSES):
         out[f"prob_{cls_name}"] = probs[:, idx]
+    out = out.rename_index("seq_id")
     return out

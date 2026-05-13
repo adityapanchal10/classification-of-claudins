@@ -111,7 +111,7 @@ if run_exploration:
 
             sequence_count = min(len(df_valid), N)
             sequence_labels = [
-                f"{df_valid.iloc[i]['seq_id']} ({df_valid.iloc[i]['length']} aa)"
+                f"{df_valid.iloc[i]['description']} ({df_valid.iloc[i]['length']} aa)"
                 for i in range(sequence_count)
             ]
             default_selection = sequence_labels.copy()
@@ -191,7 +191,7 @@ if run_exploration:
                     filtered_embeddings = embeddings[selected_indices, :, :]
 
                 residues_list = [list(seq) for seq in filtered_df["sequence"].values]
-                ids_list = filtered_df["seq_id"].tolist()
+                ids_list = filtered_df["description"].tolist()
 
                 if show_pca_btn:
                     print(f"[PAGE Explore] Show PCA n_seq={len(selected_indices)} pcs={n_pcs}")

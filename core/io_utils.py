@@ -60,4 +60,6 @@ def validate_sequences(df: pd.DataFrame) -> pd.DataFrame:
     out["is_valid"] = out["sequence"].apply(lambda s: len(s) > 0 and set(s).issubset(allowed))
     out["invalid_chars"] = out["sequence"].apply(lambda s: "".join(sorted(set([c for c in s if c not in allowed]))))
     print(f"[IO] Valid sequences={int(out['is_valid'].sum())}/{len(out)}")
+    out = out.drop(columns=["seq_id"], errors="ignore")
+    out = out.rename_axis("seq_id")
     return out
