@@ -6,7 +6,13 @@ from core.embeddings import build_baseline_embeddings, get_embedder
 from core.explainability import attention_dataframe, compute_ig_attributions, residue_importance_dataframe
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
-from core.predict import predict_probabilities, resolve_residue_slice, slice_embeddings, slice_sequence
+from core.predict import (
+    predict_probabilities,
+    resolve_residue_slice,
+    slice_embeddings,
+    slice_sequence,
+    expand_scores_to_full,
+)
 from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, memory_log, toast_once
 from core.visuals import plot_residue_boxplot
 
@@ -112,15 +118,116 @@ default_index = models.index(default_model) if default_model in models else 0
 col_model_a, col_model_b = st.columns(2)
 with col_model_a:
     left_model = st.selectbox("Model A", models, index=default_index, key="cmp_a")
+    left_defaults = resolve_residue_slice(MODEL_REGISTRY[left_model])
+    left_ecs_default = left_defaults is not None
+    left_ecs_only = st.checkbox("ECS only", value=left_ecs_default, key="cmp_a_ecs_only")
+    default_ecs1_start, default_ecs1_end, default_ecs2_start, default_ecs2_end = 28, 81, 139, 164
+    if isinstance(left_defaults, list) and len(left_defaults) >= 2:
+        default_ecs1_start = left_defaults[0][0] + 1
+        default_ecs1_end = left_defaults[0][1]
+        default_ecs2_start = left_defaults[1][0] + 1
+        default_ecs2_end = left_defaults[1][1]
+    left_cols = st.columns(4)
+    with left_cols[0]:
+        left_ecs1_start = st.number_input(
+            "ECS1 start",
+            min_value=1,
+            value=int(default_ecs1_start),
+            disabled=not left_ecs_only,
+            key="cmp_a_ecs1_start",
+        )
+    with left_cols[1]:
+        left_ecs1_end = st.number_input(
+            "ECS1 end",
+            min_value=1,
+            value=int(default_ecs1_end),
+            disabled=not left_ecs_only,
+            key="cmp_a_ecs1_end",
+        )
+    with left_cols[2]:
+        left_ecs2_start = st.number_input(
+            "ECS2 start",
+            min_value=1,
+            value=int(default_ecs2_start),
+            disabled=not left_ecs_only,
+            key="cmp_a_ecs2_start",
+        )
+    with left_cols[3]:
+        left_ecs2_end = st.number_input(
+            "ECS2 end",
+            min_value=1,
+            value=int(default_ecs2_end),
+            disabled=not left_ecs_only,
+            key="cmp_a_ecs2_end",
+        )
 with col_model_b:
     right_model = st.selectbox("Model B", models, index=min(0, len(models)-1), key="cmp_b")
+    right_defaults = resolve_residue_slice(MODEL_REGISTRY[right_model])
+    right_ecs_default = right_defaults is not None
+    right_ecs_only = st.checkbox("ECS only", value=right_ecs_default, key="cmp_b_ecs_only")
+    default_ecs1_start, default_ecs1_end, default_ecs2_start, default_ecs2_end = 28, 81, 139, 164
+    if isinstance(right_defaults, list) and len(right_defaults) >= 2:
+        default_ecs1_start = right_defaults[0][0] + 1
+        default_ecs1_end = right_defaults[0][1]
+        default_ecs2_start = right_defaults[1][0] + 1
+        default_ecs2_end = right_defaults[1][1]
+    right_cols = st.columns(4)
+    with right_cols[0]:
+        right_ecs1_start = st.number_input(
+            "ECS1 start",
+            min_value=1,
+            value=int(default_ecs1_start),
+            disabled=not right_ecs_only,
+            key="cmp_b_ecs1_start",
+        )
+    with right_cols[1]:
+        right_ecs1_end = st.number_input(
+            "ECS1 end",
+            min_value=1,
+            value=int(default_ecs1_end),
+            disabled=not right_ecs_only,
+            key="cmp_b_ecs1_end",
+        )
+    with right_cols[2]:
+        right_ecs2_start = st.number_input(
+            "ECS2 start",
+            min_value=1,
+            value=int(default_ecs2_start),
+            disabled=not right_ecs_only,
+            key="cmp_b_ecs2_start",
+        )
+    with right_cols[3]:
+        right_ecs2_end = st.number_input(
+            "ECS2 end",
+            min_value=1,
+            value=int(default_ecs2_end),
+            disabled=not right_ecs_only,
+            key="cmp_b_ecs2_end",
+        )
 
 if st.button("Run comparison", type="primary"):
     print(f"[PAGE Compare] Run comparison A={left_model} B={right_model} idx={selected_idx}")
     cols = st.columns(2)
     for slot, (col, model_name) in enumerate(zip(cols, [left_model, right_model])):
         bundle = load_classifier_bundle(model_name)
-        residue_slice = resolve_residue_slice(MODEL_REGISTRY[model_name])
+        if model_name == left_model:
+            if left_ecs_only:
+                ecs1_start = int(max(1, left_ecs1_start))
+                ecs1_end = int(max(ecs1_start, left_ecs1_end))
+                ecs2_start = int(max(1, left_ecs2_start))
+                ecs2_end = int(max(ecs2_start, left_ecs2_end))
+                residue_slice = [(ecs1_start - 1, ecs1_end), (ecs2_start - 1, ecs2_end)]
+            else:
+                residue_slice = None
+        else:
+            if right_ecs_only:
+                ecs1_start = int(max(1, right_ecs1_start))
+                ecs1_end = int(max(ecs1_start, right_ecs1_end))
+                ecs2_start = int(max(1, right_ecs2_start))
+                ecs2_end = int(max(ecs2_start, right_ecs2_end))
+                residue_slice = [(ecs1_start - 1, ecs1_end), (ecs2_start - 1, ecs2_end)]
+            else:
+                residue_slice = None
         sample_embedding = embeddings_all[selected_idx].unsqueeze(0).to(torch.float32)
         sample_embedding = slice_embeddings(sample_embedding, residue_slice)
         baseline_embedding = build_baseline_embeddings(sample_embedding.shape[1])
@@ -133,16 +240,27 @@ if st.button("Run comparison", type="primary"):
             n_steps=ig_steps,
             internal_batch_size=max(4, min(8, ig_steps)),
         )
+        full_seq = selected_row["sequence"][: embeddings_all.shape[1]]
         trunc_seq = slice_sequence(selected_row["sequence"], residue_slice)
         trunc_seq = trunc_seq[: sample_embedding.shape[1]]
-        ig_df = residue_importance_dataframe(trunc_seq, residue_attrs.squeeze(0).numpy()[: len(trunc_seq)])
+        residue_scores = residue_attrs.squeeze(0).numpy()[: len(trunc_seq)]
+        if residue_slice is not None:
+            full_scores = expand_scores_to_full(residue_scores, residue_slice, len(full_seq))
+            ig_df = residue_importance_dataframe(full_seq, full_scores)
+        else:
+            ig_df = residue_importance_dataframe(trunc_seq, residue_scores)
         with col:
             st.subheader(model_name)
             st.markdown(f"**Architecture:** {bundle.architecture}")
             st.markdown(f"**Prediction:** {CLASS_MAP[int(preds[0])]} ({confs[0]:.3f})")
             plot_residue_boxplot(ig_df, "score", f"Integrated Gradients — {model_name}", "IG score", key=f"cmp_ig_{slot}")
             if bundle.uses_attention and attn is not None:
-                attn_df = attention_dataframe(trunc_seq, attn[0].numpy()[: len(trunc_seq)])
+                attn_vec = attn[0].numpy()[: len(trunc_seq)]
+                if residue_slice is not None:
+                    full_attn = expand_scores_to_full(attn_vec, residue_slice, len(full_seq))
+                    attn_df = attention_dataframe(full_seq, full_attn)
+                else:
+                    attn_df = attention_dataframe(trunc_seq, attn_vec)
                 plot_residue_boxplot(attn_df, "attention", f"Attention Weights — {model_name}", "Attention", key=f"cmp_attn_{slot}")
             else:
                 st.info("No attention visualization for this model.")

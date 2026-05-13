@@ -119,6 +119,12 @@ ESMFold structure prediction is fetched from the public API at `https://api.esma
 
 ---
 
+## ECS-Only Mode
+
+Predict and Compare pages include an **ECS only** toggle. When enabled, you provide ECS1 and ECS2 ranges (1-based, inclusive). The app still embeds the full MSA, then slices out only the ECS regions for inference. Explainability plots remain on the full sequence, with non-ECS positions set to zero so only ECS residues are highlighted.
+
+---
+
 ## Extending the App
 
 ### Add a new classifier model

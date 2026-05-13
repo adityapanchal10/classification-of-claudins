@@ -21,6 +21,8 @@ Explore what drives the model's predictions with per-residue importance scores a
 | ℹ️ **About Models** | Architecture summaries and training checkpoint metrics for all registered models |
 
 Use the **sidebar** to set the active model and IG step count before running inference.
+
+**ECS-only mode**: Toggle "ECS only" on the Predict or Compare pages and set ECS1/ECS2 ranges (1-based, inclusive). The app still embeds the full MSA, then slices to the ECS regions for inference; explainability plots are shown on the full sequence with non-ECS positions set to zero.
 """
 )
 

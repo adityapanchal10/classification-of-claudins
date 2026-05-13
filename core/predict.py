@@ -1,4 +1,5 @@
 import numpy as np
+import re
 import torch
 
 from core.config import CLASS_MAP, DEFAULT_CLASSES
@@ -25,6 +26,79 @@ def resolve_residue_slice(cfg):
     start = int(start)
     end = int(end) if end is not None else None
     return (start, end)
+
+
+def normalize_residue_ranges(residue_slice, seq_len=None):
+    if residue_slice is None:
+        return None
+    ranges = residue_slice
+    if isinstance(ranges, tuple):
+        ranges = [ranges]
+    if not isinstance(ranges, list):
+        return None
+    normalized = []
+    for start, end in ranges:
+        start = int(start)
+        end = int(end) if end is not None else None
+        if seq_len is not None:
+            start = max(0, min(start, seq_len))
+            end = seq_len if end is None else max(start, min(end, seq_len))
+        normalized.append((start, end))
+    return normalized
+
+
+def format_residue_ranges(residue_slice):
+    ranges = normalize_residue_ranges(residue_slice)
+    if not ranges:
+        return ""
+    parts = []
+    for start, end in ranges:
+        start_1 = start + 1
+        end_1 = "" if end is None else str(end)
+        parts.append(f"{start_1}-{end_1}" if end is not None else f"{start_1}-")
+    return ",".join(parts)
+
+
+def parse_residue_ranges(text, fallback=None):
+    if text is None:
+        return normalize_residue_ranges(fallback)
+    raw = str(text).strip()
+    if not raw:
+        return normalize_residue_ranges(fallback)
+    parts = [p.strip() for p in raw.split(",") if p.strip()]
+    ranges = []
+    for part in parts:
+        match = re.match(r"^(\d+)\s*[-:]\s*(\d+)?$", part)
+        if not match:
+            return normalize_residue_ranges(fallback)
+        start_1 = int(match.group(1))
+        end_1 = match.group(2)
+        end_1 = int(end_1) if end_1 is not None else None
+        start = max(0, start_1 - 1)
+        end = None if end_1 is None else max(start + 1, end_1)
+        ranges.append((start, end))
+    return normalize_residue_ranges(ranges)
+
+
+def expand_scores_to_full(scores, residue_slice, seq_len):
+    scores = np.asarray(scores)
+    full = np.zeros(seq_len, dtype=scores.dtype)
+    ranges = normalize_residue_ranges(residue_slice, seq_len=seq_len) or []
+    idx = 0
+    for start, end in ranges:
+        if end is None:
+            end = seq_len
+        seg_len = max(0, end - start)
+        if seg_len == 0:
+            continue
+        take = min(seg_len, max(0, len(scores) - idx))
+        if take == 0:
+            break
+        full[start:start + take] = scores[idx:idx + take]
+        idx += take
+        if idx >= len(scores):
+            break
+    return full
 
 
 def slice_embeddings(embeddings, residue_slice):

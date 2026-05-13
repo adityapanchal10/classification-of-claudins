@@ -10,7 +10,14 @@ from core.embeddings import build_baseline_embeddings, get_embedder, infer_struc
 from core.explainability import attention_dataframe, compute_ig_attributions, residue_importance_dataframe
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
-from core.predict import build_prediction_table, predict_probabilities, resolve_residue_slice, slice_embeddings, slice_sequence
+from core.predict import (
+    build_prediction_table,
+    predict_probabilities,
+    resolve_residue_slice,
+    slice_embeddings,
+    slice_sequence,
+    expand_scores_to_full,
+)
 from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, memory_log, toast_once
 from core.visuals import plot_attention, plot_importance, plot_top_attributes, show_structure_viewer
 
@@ -26,12 +33,62 @@ batch_size = DEFAULT_BATCH_SIZE
 ig_steps = st.session_state.get("global_ig_steps", 50)
 
 cfg = MODEL_REGISTRY[model_name]
-residue_slice = resolve_residue_slice(cfg)
+default_residue_slice = resolve_residue_slice(cfg)
 st.markdown(f"**Model:** {model_name}")
 with st.expander("Details", expanded=True):
     st.markdown(f"**Description**: {cfg['description']}")
     st.markdown(f"**Architecture**: {cfg['architecture']}")
     st.markdown(f"**Attention available**: {'Yes' if cfg['uses_attention'] else 'No'}")
+
+ecs_only_default = default_residue_slice is not None
+ecs_only = st.checkbox("ECS only (The model will only use the regions specified for the prediction)", value=ecs_only_default, key="predict_ecs_only")
+default_ecs1_start, default_ecs1_end, default_ecs2_start, default_ecs2_end = 28, 81, 139, 164
+if isinstance(default_residue_slice, list) and len(default_residue_slice) >= 2:
+    default_ecs1_start = default_residue_slice[0][0] + 1
+    default_ecs1_end = default_residue_slice[0][1]
+    default_ecs2_start = default_residue_slice[1][0] + 1
+    default_ecs2_end = default_residue_slice[1][1]
+cols_ecs = st.columns(4)
+with cols_ecs[0]:
+    ecs1_start = st.number_input(
+        "ECS1 start",
+        min_value=1,
+        value=int(default_ecs1_start),
+        disabled=not ecs_only,
+        key="predict_ecs1_start",
+    )
+with cols_ecs[1]:
+    ecs1_end = st.number_input(
+        "ECS1 end",
+        min_value=1,
+        value=int(default_ecs1_end),
+        disabled=not ecs_only,
+        key="predict_ecs1_end",
+    )
+with cols_ecs[2]:
+    ecs2_start = st.number_input(
+        "ECS2 start",
+        min_value=1,
+        value=int(default_ecs2_start),
+        disabled=not ecs_only,
+        key="predict_ecs2_start",
+    )
+with cols_ecs[3]:
+    ecs2_end = st.number_input(
+        "ECS2 end",
+        min_value=1,
+        value=int(default_ecs2_end),
+        disabled=not ecs_only,
+        key="predict_ecs2_end",
+    )
+if ecs_only:
+    ecs1_start_i = int(max(1, ecs1_start))
+    ecs1_end_i = int(max(ecs1_start_i, ecs1_end))
+    ecs2_start_i = int(max(1, ecs2_start))
+    ecs2_end_i = int(max(ecs2_start_i, ecs2_end))
+    residue_slice = [(ecs1_start_i - 1, ecs1_end_i), (ecs2_start_i - 1, ecs2_end_i)]
+else:
+    residue_slice = None
 
 text_value = st.text_area(
     "Enter Sequence(s) here:",
@@ -84,6 +141,8 @@ if st.button("Run inference", type="primary"):
         cache_log("Stored predict embeddings")
     st.session_state.predict_run = {
         "model_name": model_name,
+        "ecs_only": ecs_only,
+        "ecs_ranges": (ecs1_start, ecs1_end, ecs2_start, ecs2_end),
         "explain_idx": 0,
         "pred_table": pred_table,
         "inspected_result": None,
@@ -102,6 +161,15 @@ if (
     df_valid = shared_df.copy()
     embeddings = shared_embeddings
     pred_table = predict_run.get("pred_table")
+
+    if (
+        predict_run.get("ecs_only") != ecs_only
+        or tuple(predict_run.get("ecs_ranges") or ()) != (ecs1_start, ecs1_end, ecs2_start, ecs2_end)
+    ):
+        pred_table = None
+        predict_run["pred_table"] = None
+        predict_run["inspected_result"] = None
+        cache_log("ECS settings changed; cleared cached prediction results")
 
     if pred_table is None:
         bundle = load_classifier_bundle(model_name)
@@ -149,13 +217,23 @@ if (
             n_steps=ig_steps,
             internal_batch_size=max(4, min(8, ig_steps)),
         )
+        full_seq = row["sequence"][: embeddings.shape[1]]
         trunc_seq = slice_sequence(row["sequence"], residue_slice)
         trunc_seq = trunc_seq[: sample_embedding.shape[1]]
-        ig_df = residue_importance_dataframe(trunc_seq, residue_attrs.squeeze(0).numpy()[: len(trunc_seq)])
+        residue_scores = residue_attrs.squeeze(0).numpy()[: len(trunc_seq)]
+        if residue_slice is not None:
+            full_scores = expand_scores_to_full(residue_scores, residue_slice, len(full_seq))
+            ig_df = residue_importance_dataframe(full_seq, full_scores)
+        else:
+            ig_df = residue_importance_dataframe(trunc_seq, residue_scores)
         attn_df = None
         if bundle.uses_attention and sample_attn is not None:
             attn_vec = sample_attn[0].numpy()[: len(trunc_seq)]
-            attn_df = attention_dataframe(trunc_seq, attn_vec)
+            if residue_slice is not None:
+                full_attn = expand_scores_to_full(attn_vec, residue_slice, len(full_seq))
+                attn_df = attention_dataframe(full_seq, full_attn)
+            else:
+                attn_df = attention_dataframe(trunc_seq, attn_vec)
         inspected_result = {
             "explain_idx": explain_idx,
             "seq_id": row["seq_id"],
