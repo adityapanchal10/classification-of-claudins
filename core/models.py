@@ -481,14 +481,10 @@ def _checkpoint_filename_from_model_key(model_name: str) -> str:
 
 
 def _ensure_checkpoint_file(model_name: str, checkpoint_file: str) -> Path:
-    ckpt_path = CHECKPOINTS_DIR / _checkpoint_filename_from_model_key(model_name)
+    ckpt_name = checkpoint_file or _checkpoint_filename_from_model_key(model_name)
+    ckpt_path = CHECKPOINTS_DIR / ckpt_name
     if ckpt_path.exists():
         return ckpt_path
-
-    # Reuse existing legacy filename if it is already present locally.
-    legacy_path = CHECKPOINTS_DIR / checkpoint_file
-    if legacy_path.exists():
-        return legacy_path
 
     checkpoint_url = resolve_checkpoint_url(model_name=model_name, checkpoint_file=checkpoint_file)
     if not checkpoint_url:
