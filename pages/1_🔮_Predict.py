@@ -109,8 +109,6 @@ if st.button("Run inference", type="primary"):
         st.warning("Provide sequence input via textbox or file upload.")
         st.stop()
     df = validate_sequences(detect_input_dataframe(text_value, uploaded_file))
-    st.subheader("Input dataset")
-    st.dataframe(df, width='stretch')
     df_valid = df[df["is_valid"]].copy()
     if df_valid.empty:
         st.error("No valid amino acid sequences were found.")
@@ -161,6 +159,9 @@ if (
     df_valid = shared_df.copy()
     embeddings = shared_embeddings
     pred_table = predict_run.get("pred_table")
+
+    st.subheader("Input dataset")
+    st.dataframe(df_valid, width='stretch')
 
     if (
         predict_run.get("ecs_only") != ecs_only

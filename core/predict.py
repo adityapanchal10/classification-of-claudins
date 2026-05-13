@@ -178,5 +178,5 @@ def build_prediction_table(df_valid, preds, confs, probs):
     out["confidence"] = confs
     for idx, cls_name in enumerate(DEFAULT_CLASSES):
         out[f"prob_{cls_name}"] = probs[:, idx]
-    out = out.rename_index("seq_id")
+    out = out.rename_axis("seq_id")
     return out
