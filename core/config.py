@@ -97,6 +97,7 @@ MODEL_REGISTRY = {
         "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
         "uses_attention": True,
         "checkpoint_file": "transformer_mlp_classifier_single_ecs_only_fasta_final.pt",
+        "residue_slice": [(27, 81), (138, 164)],
         "kwargs": {
             "input_dim": 768,
             "proj_dim": 128,

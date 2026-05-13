@@ -6,7 +6,7 @@ from core.embeddings import build_baseline_embeddings, get_embedder
 from core.explainability import attention_dataframe, compute_ig_attributions, residue_importance_dataframe
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
-from core.predict import predict_probabilities
+from core.predict import predict_probabilities, resolve_residue_slice, slice_embeddings, slice_sequence
 from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, memory_log, toast_once
 from core.visuals import plot_residue_boxplot
 
@@ -117,12 +117,13 @@ with col_model_b:
 
 if st.button("Run comparison", type="primary"):
     print(f"[PAGE Compare] Run comparison A={left_model} B={right_model} idx={selected_idx}")
-    sample_embedding = embeddings_all[selected_idx].unsqueeze(0).to(torch.float32)
-    baseline_embedding = build_baseline_embeddings(seq_length)
-
     cols = st.columns(2)
     for slot, (col, model_name) in enumerate(zip(cols, [left_model, right_model])):
         bundle = load_classifier_bundle(model_name)
+        residue_slice = resolve_residue_slice(MODEL_REGISTRY[model_name])
+        sample_embedding = embeddings_all[selected_idx].unsqueeze(0).to(torch.float32)
+        sample_embedding = slice_embeddings(sample_embedding, residue_slice)
+        baseline_embedding = build_baseline_embeddings(sample_embedding.shape[1])
         preds, confs, _, attn = predict_probabilities(bundle, sample_embedding)
         residue_attrs, _ = compute_ig_attributions(
             bundle.classifier,
@@ -132,7 +133,8 @@ if st.button("Run comparison", type="primary"):
             n_steps=ig_steps,
             internal_batch_size=max(4, min(8, ig_steps)),
         )
-        trunc_seq = selected_row["sequence"][: sample_embedding.shape[1]]
+        trunc_seq = slice_sequence(selected_row["sequence"], residue_slice)
+        trunc_seq = trunc_seq[: sample_embedding.shape[1]]
         ig_df = residue_importance_dataframe(trunc_seq, residue_attrs.squeeze(0).numpy()[: len(trunc_seq)])
         with col:
             st.subheader(model_name)

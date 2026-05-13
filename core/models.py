@@ -128,6 +128,12 @@ class TransformerMLPClassifier(nn.Module):
         B, R, D = x.shape
         device  = x.device
 
+        # Truncate to the maximum positional embedding length when needed.
+        max_len = self.pos_emb.num_embeddings
+        if R > max_len:
+            x = x[:, :max_len, :]
+            R = max_len
+
         # Project 768 → 128
         x = self.input_proj(x)                          # (B, R, 128)
 

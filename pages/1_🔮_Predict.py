@@ -10,7 +10,7 @@ from core.embeddings import build_baseline_embeddings, get_embedder, infer_struc
 from core.explainability import attention_dataframe, compute_ig_attributions, residue_importance_dataframe
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
-from core.predict import build_prediction_table, predict_probabilities
+from core.predict import build_prediction_table, predict_probabilities, resolve_residue_slice, slice_embeddings, slice_sequence
 from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, memory_log, toast_once
 from core.visuals import plot_attention, plot_importance, plot_top_attributes, show_structure_viewer
 
@@ -26,6 +26,7 @@ batch_size = DEFAULT_BATCH_SIZE
 ig_steps = st.session_state.get("global_ig_steps", 50)
 
 cfg = MODEL_REGISTRY[model_name]
+residue_slice = resolve_residue_slice(cfg)
 st.markdown(f"**Model:** {model_name}")
 with st.expander("Details", expanded=True):
     st.markdown(f"**Description**: {cfg['description']}")
@@ -68,7 +69,8 @@ if st.button("Run inference", type="primary"):
         )
 
     bundle = load_classifier_bundle(model_name)
-    preds, confs, probs, _ = predict_probabilities(bundle, embeddings, return_attention=False)
+    embeddings_for_model = slice_embeddings(embeddings, residue_slice)
+    preds, confs, probs, _ = predict_probabilities(bundle, embeddings_for_model, return_attention=False)
     pred_table = build_prediction_table(df_valid, preds, confs, probs)
 
     print(f"[PAGE Predict] Inference ready n_seq={len(df_valid)}")
@@ -103,7 +105,8 @@ if (
 
     if pred_table is None:
         bundle = load_classifier_bundle(model_name)
-        preds, confs, probs, _ = predict_probabilities(bundle, embeddings, return_attention=False)
+        embeddings_for_model = slice_embeddings(embeddings, residue_slice)
+        preds, confs, probs, _ = predict_probabilities(bundle, embeddings_for_model, return_attention=False)
         pred_table = build_prediction_table(df_valid, preds, confs, probs)
         st.session_state.predict_run["pred_table"] = pred_table
         cache_log("Stored missing predict_run field (pred_table)")
@@ -133,10 +136,11 @@ if (
         # Reuse the already-computed embeddings instead of re-running the
         # expensive ESM model for a single sequence.
         sample_embedding = embeddings[explain_idx].unsqueeze(0).to(torch.float32)
+        sample_embedding = slice_embeddings(sample_embedding, residue_slice)
 
         sample_preds, sample_confs, _, sample_attn = predict_probabilities(bundle, sample_embedding)
 
-        baseline_embedding = build_baseline_embeddings(seq_length)
+        baseline_embedding = build_baseline_embeddings(sample_embedding.shape[1])
         residue_attrs, _ = compute_ig_attributions(
             bundle.classifier,
             sample_embedding,
@@ -145,7 +149,8 @@ if (
             n_steps=ig_steps,
             internal_batch_size=max(4, min(8, ig_steps)),
         )
-        trunc_seq = row["sequence"][: sample_embedding.shape[1]]
+        trunc_seq = slice_sequence(row["sequence"], residue_slice)
+        trunc_seq = trunc_seq[: sample_embedding.shape[1]]
         ig_df = residue_importance_dataframe(trunc_seq, residue_attrs.squeeze(0).numpy()[: len(trunc_seq)])
         attn_df = None
         if bundle.uses_attention and sample_attn is not None:
