@@ -30,6 +30,27 @@ def compute_ig_attributions(model, inputs, baseline, target_class, n_steps=50, d
     return residue_attrs.detach().cpu(), delta.detach().cpu()
 
 
+def compute_saliency(model, inputs):
+    """Extract gradient saliency scores from the classifier."""
+    print("[XAI] Saliency start")
+    model.eval()
+
+    inputs = inputs.requires_grad_(True)
+    logits = model(inputs)
+    predicted_classes = logits.argmax(dim=1)
+
+    scores = logits[torch.arange(len(predicted_classes)), predicted_classes]
+    model.zero_grad(set_to_none=True)
+    if inputs.grad is not None:
+        inputs.grad = None
+    scores.sum().backward()
+
+    saliency = inputs.grad.abs().mean(dim=-1)
+
+    print("[XAI] Saliency done")
+    return logits, saliency.detach()
+
+
 def residue_importance_dataframe(sequence: str, scores: np.ndarray) -> pd.DataFrame:
     max_abs = np.max(np.abs(scores)) if len(scores) else 1.0
     norm = np.zeros_like(scores) if max_abs == 0 else scores / max_abs
@@ -50,3 +71,5 @@ def attention_dataframe(sequence: str, scores: np.ndarray) -> pd.DataFrame:
         "attention": scores,
         "normalized_attention": norm,
     })
+
+

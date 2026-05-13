@@ -317,7 +317,7 @@ def plot_importance(df, title: str):
         colors=colors,
     )
 
-def plot_attention(df, title: str):
+def plot_attention(df, title: str, is_saliency: bool = False):
     theme_type = str(getattr(getattr(st.context, "theme", None), "type", "light")).lower()
     is_dark = theme_type == "dark"
     
@@ -329,15 +329,15 @@ def plot_attention(df, title: str):
         # Light theme: start from light color, go to dark saturated color
         colors = ["#f0e6ff", "#dfd0f8", "#9058d4"]
     
+    legend_title = "Saliency Scores" if is_saliency else "Attention Weight"
     _plot_sequence_colormap(
         df=df,
         title=title,
         value_col="attention",
         symmetric=False,
-        legend_title="Attention Weight",
+        legend_title=legend_title,
         colors=colors,
     )
-
 
 def plot_top_attributes(top_attrs: pd.DataFrame, title: str = "Top 10 attributes (5 most positive, 5 most negative)"):
     if top_attrs.empty:

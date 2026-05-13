@@ -125,6 +125,13 @@ Predict and Compare pages include an **ECS only** toggle. When enabled, you prov
 
 ---
 
+## Interpreting Attention and Saliency
+
+- **Attention**: higher values mean the model is focusing more on that residue. The scale is low → high.
+- **Saliency (gradients)**: higher values mean the prediction changes more if that residue changes. Also low → high, and it does not show positive vs. negative effect.
+
+---
+
 ## Extending the App
 
 ### Add a new classifier model

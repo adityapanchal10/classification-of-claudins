@@ -7,7 +7,12 @@ import torch
 
 from core.config import MODEL_REGISTRY
 from core.embeddings import build_baseline_embeddings, get_embedder, infer_structure_with_esmfold
-from core.explainability import attention_dataframe, compute_ig_attributions, residue_importance_dataframe
+from core.explainability import (
+    attention_dataframe,
+    compute_ig_attributions,
+    compute_saliency,
+    residue_importance_dataframe,
+)
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
 from core.predict import (
@@ -228,6 +233,7 @@ if (
         else:
             ig_df = residue_importance_dataframe(trunc_seq, residue_scores)
         attn_df = None
+        saliency_df = None
         if bundle.uses_attention and sample_attn is not None:
             attn_vec = sample_attn[0].numpy()[: len(trunc_seq)]
             if residue_slice is not None:
@@ -235,6 +241,14 @@ if (
                 attn_df = attention_dataframe(full_seq, full_attn)
             else:
                 attn_df = attention_dataframe(trunc_seq, attn_vec)
+        elif not bundle.uses_attention:
+            _, saliency_attrs = compute_saliency(bundle.classifier, sample_embedding)
+            saliency_scores = saliency_attrs.squeeze(0).numpy()[: len(trunc_seq)]
+            if residue_slice is not None:
+                full_saliency = expand_scores_to_full(saliency_scores, residue_slice, len(full_seq))
+                saliency_df = attention_dataframe(full_seq, full_saliency)
+            else:
+                saliency_df = attention_dataframe(trunc_seq, saliency_scores)
         inspected_result = {
             "explain_idx": explain_idx,
             "seq_id": row["description"],
@@ -242,6 +256,7 @@ if (
             "trunc_seq": trunc_seq,
             "ig_df": ig_df,
             "attn_df": attn_df,
+            "saliency_df": saliency_df,
             "inspect_conf": float(sample_confs[0]),
             "pdb_path": None,
         }
@@ -257,6 +272,7 @@ if (
         trunc_seq = inspected_result["trunc_seq"]
         ig_df = inspected_result["ig_df"]
         attn_df = inspected_result.get("attn_df")
+        saliency_df = inspected_result.get("saliency_df")
         inspect_conf = inspected_result.get("inspect_conf")
         if inspect_conf is None:
             inspect_conf = float(pred_table.iloc[explain_idx]["confidence"])
@@ -282,6 +298,9 @@ if (
         if cfg["uses_attention"] and attn_df is not None:
             st.markdown(f"**Attention Weights** - {row['description']}")
             plot_attention(attn_df, "")
+        elif saliency_df is not None:
+            st.markdown(f"**Saliency (gradients)** - {row['description']}")
+            plot_attention(saliency_df, "", is_saliency=True)
         else:
             st.info("Attention visualization is not available for this model.")
 

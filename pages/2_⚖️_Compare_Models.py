@@ -3,7 +3,12 @@ import torch
 
 from core.config import CLASS_MAP, MODEL_REGISTRY
 from core.embeddings import build_baseline_embeddings, get_embedder
-from core.explainability import attention_dataframe, compute_ig_attributions, residue_importance_dataframe
+from core.explainability import (
+    attention_dataframe,
+    compute_ig_attributions,
+    compute_saliency,
+    residue_importance_dataframe,
+)
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.models import load_classifier_bundle
 from core.predict import (
@@ -263,6 +268,14 @@ if st.button("Run comparison", type="primary"):
                     attn_df = attention_dataframe(trunc_seq, attn_vec)
                 plot_residue_boxplot(attn_df, "attention", f"Attention Weights — {model_name}", "Attention", key=f"cmp_attn_{slot}")
             else:
-                st.info("No attention visualization for this model.")
+                # st.info("No attention visualization for this model. But we can compute saliency!")
+                _, saliency_attrs = compute_saliency(bundle.classifier, sample_embedding)
+                saliency_scores = saliency_attrs.squeeze(0).numpy()[: len(trunc_seq)]
+                if residue_slice is not None:
+                    full_saliency = expand_scores_to_full(saliency_scores, residue_slice, len(full_seq))
+                    saliency_df = attention_dataframe(full_seq, full_saliency)
+                else:
+                    saliency_df = attention_dataframe(trunc_seq, saliency_scores)
+                plot_residue_boxplot(saliency_df, "attention", f"Saliency — {model_name}", "Saliency", key=f"cmp_sal_{slot}")
     print("[PAGE Compare] Comparison done")
     memory_log("compare.run_comparison.done")

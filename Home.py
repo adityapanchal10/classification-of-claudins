@@ -15,7 +15,7 @@ Explore what drives the model's predictions with per-residue importance scores a
 
 | Page | What it does |
 |---|---|
-| 🔮 **Predict** | Batch inference · per-residue IG and attention heatmaps · ESMFold structure prediction |
+| 🔮 **Predict** | Batch inference · per-residue IG and attention/saliency heatmaps · ESMFold structure prediction |
 | ⚖️ **Compare Models** | Side-by-side prediction and normalised bar-chart explainability for two models |
 | 📊 **Data Exploration** | PCA embedding distributions with interactive filtering |
 | ℹ️ **About Models** | Architecture summaries and training checkpoint metrics for all registered models |
