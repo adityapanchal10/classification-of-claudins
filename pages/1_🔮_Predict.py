@@ -166,7 +166,14 @@ if (
     pred_table = predict_run.get("pred_table")
 
     st.subheader("Input dataset")
-    st.dataframe(df_valid, width='stretch')
+    if ecs_only and residue_slice is not None:
+        df_display = df_valid.copy()
+        df_display["ecs_sequence"] = df_display["sequence"].apply(
+            lambda seq: slice_sequence(seq, residue_slice)
+        )
+        st.dataframe(df_display, width='stretch')
+    else:
+        st.dataframe(df_valid, width='stretch')
 
     if (
         predict_run.get("ecs_only") != ecs_only
