@@ -126,6 +126,7 @@ def global_sidebar():
     current_embedder = st.session_state.get("global_embedder_name", DEFAULT_EMBEDDER_NAME)
     if current_embedder not in embedder_options:
         current_embedder = DEFAULT_EMBEDDER_NAME
+        st.session_state["global_embedder_name"] = current_embedder
     
     # Find the index to display
     try:
@@ -186,6 +187,7 @@ def global_sidebar():
     current_model = st.session_state.get("global_model_name")
     if current_model not in model_options:
         current_model = model_options[0]
+        st.session_state["global_model_name"] = current_model
     
     # Find the index to display
     try:
