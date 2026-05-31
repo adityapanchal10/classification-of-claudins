@@ -31,6 +31,7 @@ st.title("Compare Models")
 seq_length = DEFAULT_SEQ_LENGTH
 batch_size = DEFAULT_BATCH_SIZE
 ig_steps = st.session_state.get("global_ig_steps", 50)
+global_msa_default = st.session_state.get("global_embed_in_msa_mode", True)
 
 # Sequence source (mirrors Data Exploration pre-stored flow).
 predict_run = st.session_state.get("predict_run")
@@ -47,6 +48,8 @@ if pre_stored_df is not None:
     if use_pre_stored:
         df_valid = pre_stored_df.copy()
         embeddings_all = pre_stored_embeddings
+        if embeddings_all is not None:
+            st.session_state["compare_embeddings_msa_only"] = global_msa_default
     else:
         uploaded = st.file_uploader("Upload FASTA for comparison", type=["fasta", "fa", "faa", "txt"], key="cmp_fasta")
         text_value = st.text_area("Or paste FASTA / one-sequence-per-line text", height=140, key="cmp_text")
@@ -68,31 +71,22 @@ if df_valid.empty:
     st.warning("No valid amino acid sequences are available for comparison.")
     st.stop()
 
-if embeddings_all is None:
-    with st.spinner("Generating embeddings for comparison..."):
-        embedder = get_embedder()
-        embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
-        toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
-        embeddings_all = embedder.embed_msa(
-            df_valid["sequence"].tolist(),
-            seq_length=seq_length,
-        )
-    cache_log("compare cache miss for embeddings; generated fresh embeddings")
-
-if not hasattr(embeddings_all, "shape") or len(embeddings_all.shape) != 3:
+if embeddings_all is not None and (not hasattr(embeddings_all, "shape") or len(embeddings_all.shape) != 3):
     st.error("Expected embeddings shape (num_sequences, num_residues, embedding_dim).")
     st.stop()
 
-sequence_count = min(len(df_valid), embeddings_all.shape[0])
+sequence_count = len(df_valid) if embeddings_all is None else min(len(df_valid), embeddings_all.shape[0])
 if sequence_count == 0:
     st.warning("No sequences available after aligning with embeddings.")
     st.stop()
 
 df_valid = df_valid.iloc[:sequence_count].reset_index(drop=True)
-if hasattr(embeddings_all, "detach"):
-    embeddings_all = embeddings_all[:sequence_count]
-else:
-    embeddings_all = embeddings_all[:sequence_count, :, :]
+if embeddings_all is not None:
+    if hasattr(embeddings_all, "detach"):
+        embeddings_all = embeddings_all[:sequence_count]
+    else:
+        embeddings_all = embeddings_all[:sequence_count, :, :]
+embeddings_all_msa_only = st.session_state.get("compare_embeddings_msa_only") if embeddings_all is not None else None
 
 preselected_idx = 0
 if predict_run is not None:
@@ -123,6 +117,11 @@ default_index = models.index(default_model) if default_model in models else 0
 col_model_a, col_model_b = st.columns(2)
 with col_model_a:
     left_model = st.selectbox("Model A", models, index=default_index, key="cmp_a")
+    left_msa_only = st.toggle(
+        "Embed in MSA mode",
+        value=global_msa_default,
+        key="cmp_a_msa_only",
+    )
     left_defaults = resolve_residue_slice(MODEL_REGISTRY[left_model])
     left_ecs_default = left_defaults is not None
     left_ecs_only = st.checkbox("ECS only", value=left_ecs_default, key="cmp_a_ecs_only")
@@ -167,6 +166,11 @@ with col_model_a:
         )
 with col_model_b:
     right_model = st.selectbox("Model B", models, index=min(0, len(models)-1), key="cmp_b")
+    right_msa_only = st.toggle(
+        "Embed in MSA mode",
+        value=global_msa_default,
+        key="cmp_b_msa_only",
+    )
     right_defaults = resolve_residue_slice(MODEL_REGISTRY[right_model])
     right_ecs_default = right_defaults is not None
     right_ecs_only = st.checkbox("ECS only", value=right_ecs_default, key="cmp_b_ecs_only")
@@ -213,9 +217,45 @@ with col_model_b:
 if st.button("Run comparison", type="primary"):
     print(f"[PAGE Compare] Run comparison A={left_model} B={right_model} idx={selected_idx}")
     cols = st.columns(2)
+    embedder_ref = {"obj": None}
+    embeddings_cache = {}
+
+    def _get_embeddings_for_mode(msa_only: bool):
+        if msa_only in embeddings_cache:
+            return embeddings_cache[msa_only]
+
+        if msa_only and embeddings_all is not None and embeddings_all_msa_only is not None and msa_only == embeddings_all_msa_only:
+            embeddings_cache[msa_only] = embeddings_all
+            return embeddings_cache[msa_only]
+
+        if embedder_ref["obj"] is None:
+            embedder_ref["obj"] = get_embedder()
+            embedder_name = getattr(embedder_ref["obj"], "model_name", "esm_msa1b_t12_100M_UR50S")
+            toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
+
+        if msa_only:
+            embeddings_cache[msa_only] = embedder_ref["obj"].embed_msa(
+                df_valid["sequence"].tolist(),
+                seq_length=seq_length,
+            )
+        else:
+            embeddings_cache[msa_only] = embedder_ref["obj"].embed_sequences_per_residue(
+                [selected_row["sequence"]],
+                seq_length=seq_length,
+                batch_size=batch_size,
+            )
+        return embeddings_cache[msa_only]
+
+    def _get_sample_embedding(msa_only: bool):
+        embeddings_for_mode = _get_embeddings_for_mode(msa_only)
+        if msa_only:
+            return embeddings_for_mode[selected_idx].unsqueeze(0)
+        return embeddings_for_mode[0].unsqueeze(0)
+
     for slot, (col, model_name) in enumerate(zip(cols, [left_model, right_model])):
         bundle = load_classifier_bundle(model_name)
-        if model_name == left_model:
+        if slot == 0:
+            msa_only = left_msa_only
             if left_ecs_only:
                 ecs1_start = int(max(1, left_ecs1_start))
                 ecs1_end = int(max(ecs1_start, left_ecs1_end))
@@ -225,6 +265,7 @@ if st.button("Run comparison", type="primary"):
             else:
                 residue_slice = None
         else:
+            msa_only = right_msa_only
             if right_ecs_only:
                 ecs1_start = int(max(1, right_ecs1_start))
                 ecs1_end = int(max(ecs1_start, right_ecs1_end))
@@ -233,7 +274,7 @@ if st.button("Run comparison", type="primary"):
                 residue_slice = [(ecs1_start - 1, ecs1_end), (ecs2_start - 1, ecs2_end)]
             else:
                 residue_slice = None
-        sample_embedding = embeddings_all[selected_idx].unsqueeze(0).to(torch.float32)
+        sample_embedding = _get_sample_embedding(msa_only).to(torch.float32)
         sample_embedding = slice_embeddings(sample_embedding, residue_slice)
         baseline_embedding = build_baseline_embeddings(sample_embedding.shape[1])
         preds, confs, _, attn = predict_probabilities(bundle, sample_embedding)
@@ -245,7 +286,7 @@ if st.button("Run comparison", type="primary"):
             n_steps=ig_steps,
             internal_batch_size=max(4, min(8, ig_steps)),
         )
-        full_seq = selected_row["sequence"][: embeddings_all.shape[1]]
+        full_seq = selected_row["sequence"][: sample_embedding.shape[1]]
         trunc_seq = slice_sequence(selected_row["sequence"], residue_slice)
         trunc_seq = trunc_seq[: sample_embedding.shape[1]]
         residue_scores = residue_attrs.squeeze(0).numpy()[: len(trunc_seq)]

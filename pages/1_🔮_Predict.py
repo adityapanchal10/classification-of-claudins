@@ -32,7 +32,7 @@ st.logo("🧬")
 global_sidebar()
 
 st.title("Predict")
-model_name = st.session_state.get("global_model_name", "Transformer + MLP Classifier")
+model_name = st.session_state.get("global_model_name", "Transformer + MLP")
 seq_length = DEFAULT_SEQ_LENGTH
 batch_size = DEFAULT_BATCH_SIZE
 ig_steps = st.session_state.get("global_ig_steps", 50)

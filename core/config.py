@@ -28,18 +28,18 @@ def _load_json_mapping(env_var_name: str) -> dict[str, str]:
 
 
 CHECKPOINT_GDRIVE_URLS = {
-    "Transformer + MLP Classifier": "https://drive.google.com/file/d/1D7u7Ta4_VhkrPxQ8W8rBj0T43dMKcz-9/view?usp=drive_link",
-    "Transformer + MLP Classifier 2": "https://drive.google.com/file/d/1-xF_CQJZDk7HI1BOK6Re_ktT3fZY7nnk/view?usp=sharing",
-    "Transformer + MLP Classifier 2 (ECS only)": "https://drive.google.com/file/d/1ujBDWsUSlH_Pa6m-nW1mD5Z9nbzFnh3l/view?usp=sharing",
-    "Simple Linear Classifier": "https://drive.google.com/file/d/1yAw3_8LBGx7wkwY_GRGPPrmMWqkRrs-k/view?usp=drive_link",
-    "Simple CNN Classifier": "https://drive.google.com/file/d/1lALilrt0OBFKXvzRTNcwOm_rgplkNTFF/view?usp=drive_link",
-    "Transformer Classifier (simple)": "https://drive.google.com/file/d/1Zsrj8FiF1yk_W-MCPeSuyNAycJZU6zas/view?usp=drive_link",
-    "Transformer Classifier (complex)": "https://drive.google.com/file/d/1O-pv5B_H9KPOxN67YlbMzjSTnQxQxyni/view?usp=drive_link",
+    "Transformer + MLP": "https://drive.google.com/file/d/1D7u7Ta4_VhkrPxQ8W8rBj0T43dMKcz-9/view?usp=drive_link",
+    "Transformer + MLP 2": "https://drive.google.com/file/d/1-xF_CQJZDk7HI1BOK6Re_ktT3fZY7nnk/view?usp=sharing",
+    "Transformer + MLP 2 (ECS only)": "https://drive.google.com/file/d/1ujBDWsUSlH_Pa6m-nW1mD5Z9nbzFnh3l/view?usp=sharing",
+    "Simple Linear": "https://drive.google.com/file/d/1yAw3_8LBGx7wkwY_GRGPPrmMWqkRrs-k/view?usp=drive_link",
+    "Simple CNN": "https://drive.google.com/file/d/1lALilrt0OBFKXvzRTNcwOm_rgplkNTFF/view?usp=drive_link",
+    "Transformer (simple)": "https://drive.google.com/file/d/1Zsrj8FiF1yk_W-MCPeSuyNAycJZU6zas/view?usp=drive_link",
+    "Transformer (complex)": "https://drive.google.com/file/d/1O-pv5B_H9KPOxN67YlbMzjSTnQxQxyni/view?usp=drive_link",
 }
 
 # Optional override via environment variable.
 # Example:
-# {"Transformer + MLP Classifier": "https://drive.google.com/file/d/<id>/view", ...}
+# {"Transformer + MLP": "https://drive.google.com/file/d/<id>/view", ...}
 CHECKPOINT_GDRIVE_URLS.update(_load_json_mapping("CHECKPOINT_GDRIVE_URLS_JSON"))
 
 
@@ -59,7 +59,7 @@ CLASS_MAP = {0: "Barrier forming", 1: "Cation-channel forming", 2: "Anion-channe
 DEFAULT_CLASSES = [CLASS_MAP[i] for i in sorted(CLASS_MAP)]
 
 MODEL_REGISTRY = {
-    "Transformer + MLP Classifier": {
+    "Transformer + MLP": {
         "class_name": "Transformer + MLP Classifier",
         "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on complete data (individual claudin FASTAs splitted from big FASTA) and validated via LOFO CV and Grouped Holdout",
         "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
@@ -75,7 +75,7 @@ MODEL_REGISTRY = {
             "seq_len": 190,
         },
     },
-    "Transformer + MLP Classifier 2": {
+    "Transformer + MLP 2": {
         "class_name": "Transformer + MLP Classifier",
         "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on train/val split from the single FASTA file",
         "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
@@ -91,7 +91,7 @@ MODEL_REGISTRY = {
             "seq_len": 190,
         },
     },
-    "Transformer + MLP Classifier 2 (ECS only)": {
+    "Transformer + MLP 2 (ECS only)": {
         "class_name": "Transformer + MLP Classifier",
         "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on train/val split from the single FASTA file modified to contain only the ECS1/2 segments",
         "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
@@ -108,7 +108,7 @@ MODEL_REGISTRY = {
             "seq_len": 80,
         },
     },
-    "Simple Linear Classifier": {
+    "Simple Linear": {
         "class_name": "Simple Linear Classifier",
         "description": "LayerNorm baseline using learned residue attention and a single linear head.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
@@ -120,7 +120,7 @@ MODEL_REGISTRY = {
             "embedding_dim": 768
         },
     },
-    "Simple CNN Classifier": {
+    "Simple CNN": {
         "class_name": "Simple CNN Classifier",
         "description": "Parallel CNN model that captures local motifs with multiple kernel sizes.",
         "architecture": "LayerNorm -> parallel Conv2d kernels -> ReLU -> global max pooling -> concatenate -> dropout -> linear classifier",
@@ -134,7 +134,7 @@ MODEL_REGISTRY = {
             "dropout": 0.1,
         },
     },
-    "Transformer Classifier (simple)": {
+    "Transformer (simple)": {
         "class_name": "Transformer Classifier (simple)",
         "description": "Transformer encoder with learned positional embeddings and mean pooling.",
         "architecture": "Positional embedding add -> TransformerEncoder layers -> mean pooling -> 2-layer MLP classifier",
@@ -149,7 +149,7 @@ MODEL_REGISTRY = {
             "max_seq_len": 512,
         },
     },
-    "Transformer Classifier (complex)": {
+    "Transformer (complex)": {
         "class_name": "Transformer Classifier (complex)",
         "description": "Residual 1D-convolution model with attention pooling.",
         "architecture": "Input projection -> positional embedding projection -> residual Conv1d blocks -> attention pooling -> MLP classifier",

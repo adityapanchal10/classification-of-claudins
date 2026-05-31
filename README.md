@@ -31,13 +31,13 @@ Three-class channel-protein classification:
 
 | Model | Architecture summary | Attention |
 |---|---|---|
-| **Transformer + MLP Classifier** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
-| **Transformer + MLP Classifier 2** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
-| **Transformer + MLP Classifier ECS only** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
-| **Simple Linear Classifier** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head | ❌ |
-| **Simple CNN Classifier** | LayerNorm → parallel Conv2d (kernels 3/4/5) → ReLU → global max pooling → concat → dropout → linear head | ❌ |
-| **Transformer Classifier (simple)** | Positional embedding add → TransformerEncoder → mean pooling → 2-layer MLP head | ✅ |
-| **Transformer Classifier (complex)** | Input projection → positional embedding → residual Conv1d blocks → attention pooling → MLP head | ✅ |
+| **Transformer + MLP** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
+| **Transformer + MLP 2** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
+| **Transformer + MLP 2 (ECS only)** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
+| **Simple Linear** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head | ❌ |
+| **Simple CNN** | LayerNorm → parallel Conv2d (kernels 3/4/5) → ReLU → global max pooling → concat → dropout → linear head | ❌ |
+| **Transformer (simple)** | Positional embedding add → TransformerEncoder → mean pooling → 2-layer MLP head | ✅ |
+| **Transformer (complex)** | Input projection → positional embedding → residual Conv1d blocks → attention pooling → MLP head | ✅ |
 
 Checkpoints live in `checkpoints/`. Each `.pt` file stores the model weights and optionally training metrics (`epoch`, `val_auc`, `acc`, `loss`, and `% class errors`).
 
@@ -122,6 +122,12 @@ ESMFold structure prediction is fetched from the public API at `https://api.esma
 ## ECS-Only Mode
 
 Predict and Compare pages include an **ECS only** toggle. When enabled, you provide ECS1 and ECS2 ranges (1-based, inclusive). The app still embeds the full MSA, then slices out only the ECS regions for inference. Explainability plots remain on the full sequence, with non-ECS positions set to zero so only ECS residues are highlighted.
+
+---
+
+## MSA Mode Toggle (applicable only for the 'MSA Transformer' Embedder)
+
+The sidebar includes an **Embed in MSA mode** toggle. When enabled, embeddings are generated using the full MSA context; when disabled, the embedder treats each sequence independently. In Compare Models, each model has its own MSA toggle so you can compare MSA-on vs MSA-off behavior side by side.
 
 ---
 

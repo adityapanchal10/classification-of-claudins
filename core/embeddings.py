@@ -132,7 +132,7 @@ class MSAEmbedder:
         sequences = self._clean_sequences(sequences)
         sequences = self.pad_or_truncate(sequences, seq_length) if seq_length is not None else sequences
         N = len(sequences)
-        print(f"[EMBED] Start MSA Embedding n_seq={N} seq_len={seq_length}")
+        print(f"[EMBED] Start {self.model_name} Embedding n_seq={N} seq_len={seq_length} msa_mode={st.session_state.get('global_embed_in_msa_mode', True)}")
 
         all_embeddings = []
 
@@ -162,12 +162,15 @@ class MSAEmbedder:
         return output_embeddings  # (N, seq_len, 768)
     
     def embed_sequences_per_residue(self, sequences, seq_length=190, batch_size=1, is_baseline=False):
+        sequences = self._clean_sequences(sequences)
+        sequences = self.pad_or_truncate(sequences, seq_length) if seq_length is not None else sequences
+        N = len(sequences)
+
         if is_baseline:
             print(f"[EMBED] Generating baseline embeddings seq_len={seq_length}")
         else:
-            print(f"[EMBED] Start n_seq={len(sequences)} seq_len={seq_length} batch={batch_size}")
-        sequences = self._clean_sequences(sequences)
-        sequences = self.pad_or_truncate(sequences, seq_length) if seq_length is not None else sequences
+            print(f"[EMBED] Start {self.model_name} Embedding n_seq={N} seq_len={seq_length} msa_mode={st.session_state.get('global_embed_in_msa_mode', True)}")
+            
         all_embeddings = []
         total_batches = (len(sequences) + batch_size - 1) // batch_size
         for batch_idx in range(total_batches):
