@@ -34,16 +34,25 @@ Three-class channel-protein classification:
 | **Transformer + MLP** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
 | **Transformer + MLP 2** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
 | **Transformer + MLP 2 (ECS only)** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
+| **Transformer + MLP 2 Non-MSA** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head (trained without MSA context) | ✅ |
+| **Transformer + MLP 2 Non-MSA (ECS only)** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head (trained without MSA context, ECS-only) | ✅ |
 | **Transformer + MLP 2 ESM2** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head (trained on ESM2 embeddings) | ✅ |
 | **Transformer + MLP 2 ESM2 (ECS only)** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head (trained on ESM2 embeddings, ECS-only) | ✅ |
 | **Simple Linear** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head | ❌ |
+| **Simple Linear 2** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head | ❌ |
+| **Simple Linear 2 (ECS only)** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head | ❌ |
+| **Simple Linear 2 Non-MSA** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head (trained without MSA context) | ❌ |
+| **Simple Linear 2 Non-MSA (ECS only)** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head (trained without MSA context, ECS-only) | ❌ |
+| **Simple Linear ESM2** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head (trained on ESM2 embeddings) | ❌ |
 | **Simple CNN** | LayerNorm → parallel Conv2d (kernels 3/4/5) → ReLU → global max pooling → concat → dropout → linear head | ❌ |
 | **Transformer (simple)** | Positional embedding add → TransformerEncoder → mean pooling → 2-layer MLP head | ✅ |
 | **Transformer (complex)** | Input projection → positional embedding → residual Conv1d blocks → attention pooling → MLP head | ✅ |
 
 Checkpoints live in `checkpoints/`. Each `.pt` file stores the model weights and optionally training metrics (`epoch`, `val_auc`, `acc`, `loss`, and `% class errors`).
 
-Note: Models suffixed with `ESM2` were trained on ESM2 (640-d) embeddings and therefore require the `ESM2` embedder to be selected. The app filters model lists by the selected embedder to prevent mismatched pairings.
+Note: (i) Models suffixed with `ESM2` were trained on ESM2 (640-d) embeddings and therefore require the `ESM2` embedder to be selected. The app filters model lists by the selected embedder to prevent mismatched pairings.
+(ii) Models marked `Non-MSA` were trained with the MSA Transformer in non-MSA mode, so keep the `MSA Transformer` embedder selected and switch MSA mode off.
+(iii) ECS-only variants were trained on the ECS1/2 residue slices.
 
 ---
 
@@ -133,7 +142,7 @@ Predict and Compare pages include an **ECS only** toggle. When enabled, you prov
 
 ## MSA Mode Toggle (applicable only for the 'MSA Transformer' Embedder)
 
-The sidebar includes an **Embed in MSA mode** toggle. When enabled, embeddings are generated using the full MSA context; when disabled, the embedder treats each sequence independently. This toggle is disabled automatically when the ESM2 embedder is selected. In Compare Models, each model has its own MSA toggle so you can compare MSA-on vs MSA-off behavior side by side.
+The sidebar includes an **Embed in MSA mode** toggle. When enabled, embeddings are generated using the full MSA context; when disabled, the embedder treats each sequence independently. When disabled, it is recommended to use the appropraite model (marked as 'Non-MSA') as they have been trained without MSA context. This toggle is disabled automatically when the ESM2 embedder is selected. In Compare Models, each model has its own MSA toggle so you can compare MSA-on vs MSA-off behavior side by side.
 
 ---
 
