@@ -114,7 +114,7 @@ def global_sidebar():
     if "global_embedder_name" not in st.session_state:
         st.session_state["global_embedder_name"] = DEFAULT_EMBEDDER_NAME
     if "global_embed_in_msa_mode" not in st.session_state:
-        st.session_state["global_embed_in_msa_mode"] = DEFAULT_EMBED_IN_MSA_MODE
+        st.session_state["global_embed_in_msa_mode"] = True
 
     previous_model = st.session_state.get("_prev_model_name")
     previous_embedder_name = st.session_state.get("_prev_embedder_name")

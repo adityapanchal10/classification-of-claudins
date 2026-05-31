@@ -1,4 +1,3 @@
-from argparse import Namespace
 from pathlib import Path
 from typing import Optional
 from urllib.error import HTTPError, URLError
@@ -53,60 +52,24 @@ def embedder_supports_msa_mode(model_name: str | None = None) -> bool:
     return bool(resolve_embedder_spec(model_name)["supports_msa_mode"])
 
 
-def _embedder_checkpoint_paths(model_name: str) -> tuple[Path, Path]:
-    checkpoint_stem = f"{model_name}_state_dict"
-    return (
-        CHECKPOINTS_DIR / f"{checkpoint_stem}.pt",
-        CHECKPOINTS_DIR / f"{checkpoint_stem}.alphabet",
-    )
-
-
-def _msa_model_args_from_state_dict(state_dict: dict[str, torch.Tensor], alphabet) -> Namespace:
-    embed_dim = state_dict["embed_tokens.weight"].shape[1]
-    layers = len({int(key.split(".")[1]) for key in state_dict if key.startswith("layers.")})
-    ffn_embed_dim = state_dict["layers.0.feed_forward_layer.layer.fc1.weight"].shape[0]
-    max_positions = state_dict["embed_positions.weight"].shape[0] - alphabet.padding_idx - 1
-    embed_positions_msa_dim = state_dict["msa_position_embedding"].shape[-1]
-    attention_heads = max(1, embed_dim // 64)
-
-    return Namespace(
-        arch="msa_transformer",
-        embed_dim=embed_dim,
-        ffn_embed_dim=ffn_embed_dim,
-        attention_heads=attention_heads,
-        layers=layers,
-        dropout=0.1,
-        attention_dropout=0.1,
-        activation_dropout=0.1,
-        max_tokens=2**14,
-        max_tokens_per_msa=2**14,
-        max_positions=max_positions,
-        embed_positions_msa=True,
-        embed_positions_msa_dim=embed_positions_msa_dim,
-    )
+def _embedder_checkpoint_path(model_name: str) -> Path:
+    return CHECKPOINTS_DIR / f"{model_name}_checkpoint.pt"
 
 
 def _load_embedder_from_checkpoints(model_name: str):
-    state_path, alphabet_path = _embedder_checkpoint_paths(model_name)
-    if not state_path.exists() or not alphabet_path.exists():
-        raise FileNotFoundError(f"Missing embedder checkpoint files for {model_name} in {CHECKPOINTS_DIR}")
+    state_path = _embedder_checkpoint_path(model_name)
+    if not state_path.exists():
+        raise FileNotFoundError(f"Missing embedder checkpoint file for {model_name} in {CHECKPOINTS_DIR}")
 
-    state_dict = torch.load(state_path, map_location="cpu", weights_only=False)
-    alphabet = torch.load(alphabet_path, map_location="cpu", weights_only=False)
-    # Build the model directly and load saved weights WITHOUT going through
-    # esm.pretrained.load_model_and_alphabet_core.
-    args = _msa_model_args_from_state_dict(state_dict, alphabet)
-    model = esm.MSATransformer(args, alphabet)
-    model.load_state_dict(state_dict)
+    model, alphabet = torch.load(state_path, map_location="cpu", weights_only=False)
     return model, alphabet
 
 
 def _download_and_cache_embedder(model_name: str):
-    model, alphabet = esm.pretrained.load_model_and_alphabet(model_name)
-    state_path, alphabet_path = _embedder_checkpoint_paths(model_name)
+    state_path = _embedder_checkpoint_path(model_name)
     CHECKPOINTS_DIR.mkdir(parents=True, exist_ok=True)
-    torch.save(model.state_dict(), state_path)
-    torch.save(alphabet, alphabet_path)
+    model, alphabet = esm.pretrained.load_model_and_alphabet(model_name)
+    torch.save((model, alphabet), state_path)
     return model, alphabet
 
 
@@ -129,16 +92,12 @@ class ESMEmbedder:
         self.embedding_dim = int(spec["embedding_dim"])
         self.supports_msa_mode = bool(spec["supports_msa_mode"])
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") if device is None else device
-        if self.supports_msa_mode:
-            try:
-                self.model, self.alphabet = _load_embedder_from_checkpoints(self.model_name)
-                print(f"[EMBED] Loaded embedder from checkpoints model={self.model_name}")
-            except Exception:
-                self.model, self.alphabet = _download_and_cache_embedder(self.model_name)
-                print(f"[EMBED] Downloaded embedder model={self.model_name}")
-        else:
-            self.model, self.alphabet = esm.pretrained.load_model_and_alphabet(self.model_name)
-            print(f"[EMBED] Loaded embedder model={self.model_name}")
+        try:
+            self.model, self.alphabet = _load_embedder_from_checkpoints(self.model_name)
+            print(f"[EMBED] Loaded embedder from checkpoints model={self.model_name}")
+        except Exception:
+            self.model, self.alphabet = _download_and_cache_embedder(self.model_name)
+            print(f"[EMBED] Downloaded embedder model={self.model_name}")
         self.batch_converter = self.alphabet.get_batch_converter()
         self.model = self.model.to(self.device)
         self.valid_chars = set(self.alphabet.all_toks)
