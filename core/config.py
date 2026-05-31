@@ -118,7 +118,7 @@ MODEL_REGISTRY = {
             "num_heads": 4,
             "num_attention_blocks": 1,
             "dropout": 0.4,
-            "seq_len": 220,
+            "seq_len": 190,
         },
     },
     "Transformer + MLP 2 (ECS only)": {
@@ -171,7 +171,7 @@ MODEL_REGISTRY = {
             "num_heads": 4,
             "num_attention_blocks": 1,
             "dropout": 0.4,
-            "seq_len": 80,
+            "seq_len": 220,
         },
     },
     "Transformer + MLP 2 ESM2": {
@@ -206,7 +206,7 @@ MODEL_REGISTRY = {
             "num_heads": 4,
             "num_attention_blocks": 1,
             "dropout": 0.4,
-            "seq_len": 80,
+            "seq_len": 220,
         },
     },
     "Simple Linear": {

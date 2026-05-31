@@ -37,9 +37,13 @@ selected_model = st.selectbox(
 
 try:
     bundle = load_classifier_bundle(selected_model)
+    model_cfg = MODEL_REGISTRY[selected_model]
+    model_kwargs = model_cfg.get("kwargs", {})
+    summary_seq_len = min(int(model_kwargs.get("seq_len", 128)), 128)
+    summary_embedding_dim = int(model_kwargs.get("embedding_dim", 768))
     model_stats = summary(
         bundle.classifier,
-        input_size=(1, 128, 768),
+        input_size=(1, summary_seq_len, summary_embedding_dim),
         depth=3,
         verbose=0,
         col_names=("input_size", "output_size", "num_params", "trainable"),
