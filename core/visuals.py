@@ -9,6 +9,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 from sklearn.decomposition import PCA
+from sklearn.manifold import TSNE
 from sklearn.preprocessing import StandardScaler
 
 try:
@@ -902,3 +903,89 @@ def visualize_sequence_residue_embeddings(
     results["explained_variance"] = explained_df
 
     return results
+
+
+def plot_residue_embeddings_tsne(ids, residues, embeddings, max_plot_sequences=None):
+    """Plot a 2D t-SNE projection of residue embeddings."""
+    if hasattr(embeddings, "detach"):
+        E = embeddings.detach().float().cpu().numpy()
+    else:
+        E = np.asarray(embeddings, dtype=np.float32)
+
+    if E.ndim != 3:
+        st.error(f"Expected embeddings shape (num_sequences, num_residues, embedding_dim), got {E.shape if hasattr(E, 'shape') else None}")
+        return None
+
+    N, R, D = E.shape
+    if max_plot_sequences is None:
+        max_plot_sequences = min(N, 10)
+
+    N_plot = min(N, max_plot_sequences)
+    E_plot = E[:N_plot]
+    ids_plot = list(ids[:N_plot])
+    residues_plot = list(residues[:N_plot])
+
+    flattened_embeddings = []
+    flattened_sequences = []
+    flattened_residues = []
+    flattened_positions = []
+    for seq_idx, sequence_id in enumerate(ids_plot):
+        residue_row = residues_plot[seq_idx]
+        seq_len = min(len(residue_row), R)
+        if seq_len <= 0:
+            continue
+        flattened_embeddings.append(E_plot[seq_idx, :seq_len, :])
+        flattened_sequences.extend([sequence_id] * seq_len)
+        flattened_residues.extend(residue_row[:seq_len])
+        flattened_positions.extend(list(range(1, seq_len + 1)))
+
+    if not flattened_embeddings:
+        st.info("Not enough residue embeddings to compute t-SNE.")
+        return None
+
+    X = np.concatenate(flattened_embeddings, axis=0)
+    Xz = StandardScaler().fit_transform(X)
+    if Xz.shape[0] < 3:
+        st.info("Not enough residue embeddings to compute t-SNE.")
+        return None
+
+    perplexity = max(2, min(30, (Xz.shape[0] - 1) // 3))
+    if perplexity >= Xz.shape[0]:
+        perplexity = max(2, Xz.shape[0] - 1)
+
+    tsne = TSNE(
+        n_components=2,
+        perplexity=perplexity,
+        init="pca",
+        learning_rate="auto",
+        random_state=42,
+    )
+    coords = tsne.fit_transform(Xz)
+
+    tsne_df = pd.DataFrame(
+        {
+            "sequence": flattened_sequences,
+            "residue": flattened_residues,
+            "position": flattened_positions,
+            "x": coords[:, 0],
+            "y": coords[:, 1],
+        }
+    )
+
+    fig = px.scatter(
+        tsne_df,
+        x="x",
+        y="y",
+        color="sequence",
+        hover_data={"position": True, "residue": True, "sequence": True, "x": ":.4f", "y": ":.4f"},
+        title=f"t-SNE projection of residue embeddings (perplexity={perplexity})",
+    )
+    fig.update_traces(marker=dict(size=7, opacity=0.82))
+    fig.update_layout(
+        width=1200,
+        height=600,
+        legend_title_text="Sequence",
+    )
+    _apply_transparent_background(fig)
+    st.plotly_chart(fig, width="stretch")
+    return tsne_df

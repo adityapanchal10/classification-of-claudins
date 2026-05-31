@@ -3,7 +3,7 @@ import streamlit as st
 from core.embeddings import get_embedder
 from core.io_utils import detect_input_dataframe, validate_sequences
 from core.ui import cache_log, global_sidebar, memory_log, toast_once
-from core.visuals import visualize_sequence_residue_embeddings
+from core.visuals import plot_residue_embeddings_tsne, visualize_sequence_residue_embeddings
 
 st.set_page_config(page_title="Data Exploration", layout="wide", page_icon="🧬")
 st.logo("🧬")
@@ -123,6 +123,7 @@ if run_exploration:
                 for i in range(sequence_count)
             ]
             default_selection = sequence_labels.copy()
+            selected_labels = default_selection
 
             # Add frosted sticky styling for visualization controls.
             st.markdown(
@@ -163,28 +164,6 @@ if run_exploration:
                 help="Select or deselect sequences to update the embedding distributions.",
             )
 
-            st.markdown(
-                "<p style='margin-top:-0.25rem; margin-bottom:0.7rem; color:#94a3b8; font-size:0.85rem;'>"
-                "The PCA plots are built only from the sequences selected above. If the selection is changed, the plots can "
-                "look different. For a decent comparison, keep the same selected list and use Plotly toggles to focus on "
-                "sequences of interest. Use a smaller subset when you want to closely compare a few similar sequences, so "
-                "the patterns are easier to see."
-                "</p>",
-                unsafe_allow_html=True,
-            )
-
-            with st.columns([1, 5])[0]:
-                n_pcs = st.number_input(
-                    "# of PCA components",
-                    min_value=1,
-                    max_value=min(3, D),
-                    value=min(3, D),
-                    step=1,
-                )
-            show_pca_btn = st.button('Show pca distribution')
-            viz_mode = "pca"
-
-            st.divider()
 
             if not selected_labels:
                 st.info("Select at least one sequence to visualize embeddings.")
@@ -201,9 +180,41 @@ if run_exploration:
                 residues_list = [list(seq) for seq in filtered_df["sequence"].values]
                 ids_list = filtered_df["description"].tolist()
 
+                with st.spinner("Generating t-SNE plots"):
+                    plot_residue_embeddings_tsne(
+                        ids=ids_list,
+                        residues=residues_list,
+                        embeddings=filtered_embeddings,
+                        max_plot_sequences=len(selected_indices),
+                    )
+
+                st.divider()
+
+                with st.columns([1, 5])[0]:
+                    n_pcs = st.number_input(
+                        "# of PCA components",
+                        min_value=1,
+                        max_value=min(3, D),
+                        value=min(3, D),
+                        step=1,
+                    )
+                show_pca_btn = st.button('Show pca distribution')
+                viz_mode = "pca"
+
+                
+
+                st.markdown(
+                    "<p style='margin-top:-0.25rem; margin-bottom:0.7rem; color:#94a3b8; font-size:0.85rem;'>"
+                    "The PCA plots are built only from the sequences selected above. If the selection is changed, the plots can "
+                    "look different. For a decent comparison, keep the same selected list and use Plotly toggles to focus on "
+                    "sequences of interest. Use a smaller subset when you want to closely compare a few similar sequences, so "
+                    "the patterns are easier to see."
+                    "</p>",
+                    unsafe_allow_html=True,
+                )
                 if show_pca_btn:
                     print(f"[PAGE Explore] Show PCA n_seq={len(selected_indices)} pcs={n_pcs}")
-                    with st.spinner("Generating visualizations..."):
+                    with st.spinner("Generating PCA plots..."):
                         visualize_sequence_residue_embeddings(
                             ids=ids_list,
                             residues=residues_list,
