@@ -121,7 +121,6 @@ def global_sidebar():
     previous_msa_only = st.session_state.get("_prev_embed_in_msa_mode")
 
     st.sidebar.header("Global settings")
-    model_name = st.sidebar.selectbox("Model", model_options, key="global_model_name")
     embedder_options = available_embedder_names()
     if st.session_state.get("global_embedder_name") not in embedder_options:
         st.session_state["global_embedder_name"] = DEFAULT_EMBEDDER_NAME
@@ -138,6 +137,7 @@ def global_sidebar():
         key="global_embed_in_msa_mode",
         disabled=not msa_supported,
     )
+    model_name = st.sidebar.selectbox("Model", model_options, key="global_model_name")
     ig_steps = st.sidebar.slider("Integrated Gradients steps", min_value=50, max_value=200, step=10, key="global_ig_steps")
 
     # When the classifier changes, discard stale model-specific results.
