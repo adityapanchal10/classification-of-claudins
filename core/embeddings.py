@@ -181,7 +181,7 @@ class ESMEmbedder:
         sequences = self._clean_sequences(sequences)
         sequences = self.pad_or_truncate(sequences, seq_length) if seq_length is not None else sequences
         N = len(sequences)
-        print(f"[EMBED] Start {self.model_name} Embedding n_seq={N} seq_len={seq_length} msa_mode={st.session_state.get('global_embed_in_msa_mode', True)}")
+        print(f"[EMBED] Start {self.model_name} Embedding n_seq={N} seq_len={seq_length} msa_mode=True")
 
         all_embeddings = []
 
@@ -218,7 +218,7 @@ class ESMEmbedder:
         if is_baseline:
             print(f"[EMBED] Generating baseline embeddings seq_len={seq_length}")
         else:
-            print(f"[EMBED] Start {self.model_name} Embedding n_seq={N} seq_len={seq_length} msa_mode={st.session_state.get('global_embed_in_msa_mode', True)}")
+            print(f"[EMBED] Start {self.model_name} Embedding n_seq={N} seq_len={seq_length} msa_mode=False")
             
         all_embeddings = []
         total_batches = (len(sequences) + batch_size - 1) // batch_size
