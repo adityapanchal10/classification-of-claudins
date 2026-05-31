@@ -229,6 +229,7 @@ if (
 
         row = df_valid.iloc[explain_idx]
         bundle = load_classifier_bundle(model_name)
+        expected_dim = int(MODEL_REGISTRY[model_name]["kwargs"]["embedding_dim"])
 
         # Reuse the already-computed embeddings instead of re-running the
         # expensive ESM model for a single sequence.
