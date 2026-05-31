@@ -120,9 +120,8 @@ st.caption(f"Selected: {selected_row['description']}")
 st.code(selected_row["sequence"], language="text")
 
 st.subheader("Model Selection")
-models = list(MODEL_REGISTRY.keys())
-default_model = st.session_state.get("global_model_name", models[0])
-default_index = models.index(default_model) if default_model in models else 0
+all_models = list(MODEL_REGISTRY.keys())
+default_model = st.session_state.get("global_model_name", all_models[0])
 col_model_a, col_model_b = st.columns(2)
 with col_model_a:
     if st.session_state.get("cmp_a_embedder") not in embedder_options:
@@ -139,7 +138,27 @@ with col_model_a:
         key="cmp_a_msa_only",
         disabled=not left_msa_supported,
     )
-    left_model = st.selectbox("Model A", models, index=default_index, key="cmp_a")
+    # Show only models compatible with the selected embedder for column A
+    left_models = []
+    for mn, meta in MODEL_REGISTRY.items():
+        compat = meta.get("compatible_embedder")
+        if isinstance(compat, (list, tuple)):
+            if left_embedder in compat:
+                left_models.append(mn)
+        else:
+            if compat == left_embedder:
+                left_models.append(mn)
+    if not left_models:
+        left_models = all_models
+        st.info(f"No models found compatible with {left_embedder}; showing all models for Model A.")
+    if st.session_state.get("cmp_a") not in left_models:
+        st.session_state["cmp_a"] = default_model if default_model in left_models else left_models[0]
+    left_model = st.selectbox(
+        "Model A",
+        left_models,
+        index=left_models.index(st.session_state["cmp_a"]) if st.session_state.get("cmp_a") in left_models else 0,
+        key="cmp_a",
+    )
     left_defaults = resolve_residue_slice(MODEL_REGISTRY[left_model])
     left_ecs_default = left_defaults is not None
     left_ecs_only = st.checkbox("ECS only", value=left_ecs_default, key="cmp_a_ecs_only")
@@ -197,7 +216,27 @@ with col_model_b:
         key="cmp_b_msa_only",
         disabled=not right_msa_supported,
     )
-    right_model = st.selectbox("Model B", models, index=min(0, len(models)-1), key="cmp_b")
+    # Show only models compatible with the selected embedder for column B
+    right_models = []
+    for mn, meta in MODEL_REGISTRY.items():
+        compat = meta.get("compatible_embedder")
+        if isinstance(compat, (list, tuple)):
+            if right_embedder in compat:
+                right_models.append(mn)
+        else:
+            if compat == right_embedder:
+                right_models.append(mn)
+    if not right_models:
+        right_models = all_models
+        st.info(f"No models found compatible with {right_embedder}; showing all models for Model B.")
+    if st.session_state.get("cmp_b") not in right_models:
+        st.session_state["cmp_b"] = default_model if default_model in right_models else right_models[0]
+    right_model = st.selectbox(
+        "Model B",
+        right_models,
+        index=right_models.index(st.session_state["cmp_b"]) if st.session_state.get("cmp_b") in right_models else 0,
+        key="cmp_b",
+    )
     right_defaults = resolve_residue_slice(MODEL_REGISTRY[right_model])
     right_ecs_default = right_defaults is not None
     right_ecs_only = st.checkbox("ECS only", value=right_ecs_default, key="cmp_b_ecs_only")

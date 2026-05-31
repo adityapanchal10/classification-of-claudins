@@ -103,9 +103,9 @@ def initialize_session_cache_state():
 def global_sidebar():
     _start_cache_trace_run()
     initialize_session_cache_state()
-    model_options = list(MODEL_REGISTRY.keys())
-    default_model = model_options[0]
-    if st.session_state.get("global_model_name") not in model_options:
+    all_models = list(MODEL_REGISTRY.keys())
+    default_model = all_models[0]
+    if st.session_state.get("global_model_name") not in all_models:
         st.session_state["global_model_name"] = default_model
     if "global_ig_steps" not in st.session_state:
         st.session_state["global_ig_steps"] = DEFAULT_IG_STEPS
@@ -137,6 +137,25 @@ def global_sidebar():
         key="global_embed_in_msa_mode",
         disabled=not msa_supported,
     )
+    # Filter available models to those compatible with the selected embedder.
+    model_options = []
+    for mn, meta in MODEL_REGISTRY.items():
+        compat = meta.get("compatible_embedder")
+        if isinstance(compat, (list, tuple)):
+            if emb in compat:
+                model_options.append(mn)
+        else:
+            if compat == emb:
+                model_options.append(mn)
+
+    if not model_options:
+        # Fallback: if no explicit compatible model is found, show all models.
+        model_options = all_models
+        st.sidebar.info(f"No models found compatible with {emb}; showing all models.")
+
+    if st.session_state.get("global_model_name") not in model_options:
+        st.session_state["global_model_name"] = model_options[0]
+
     model_name = st.sidebar.selectbox("Model", model_options, key="global_model_name")
     ig_steps = st.sidebar.slider("Integrated Gradients steps", min_value=50, max_value=200, step=10, key="global_ig_steps")
 
