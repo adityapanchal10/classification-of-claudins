@@ -16,6 +16,8 @@ DEFAULT_SEQ_LENGTH = 190
 DEFAULT_BATCH_SIZE = 64
 DEFAULT_IG_STEPS = 50
 DEFAULT_ENABLE_MEMORY_LOGS = False
+DEFAULT_EMBEDDER_NAME = "MSA Transformer"
+DEFAULT_EMBED_IN_MSA_MODE = True
 
 
 def app_header():
@@ -108,11 +110,25 @@ def global_sidebar():
         st.session_state["global_ig_steps"] = DEFAULT_IG_STEPS
     if "global_enable_memory_logs" not in st.session_state:
         st.session_state["global_enable_memory_logs"] = DEFAULT_ENABLE_MEMORY_LOGS
+    if "global_embedder_name" not in st.session_state:
+        st.session_state["global_embedder_name"] = DEFAULT_EMBEDDER_NAME
+    if "global_embed_in_msa_mode" not in st.session_state:
+        st.session_state["global_embed_in_msa_mode"] = DEFAULT_EMBED_IN_MSA_MODE
 
     previous_model = st.session_state.get("_prev_model_name")
+    previous_msa_only = st.session_state.get("_prev_embed_in_msa_mode")
 
     st.sidebar.header("Global settings")
     model_name = st.sidebar.selectbox("Model", model_options, key="global_model_name")
+    emb = st.sidebar.selectbox(
+        "Embedder",
+        [DEFAULT_EMBEDDER_NAME],
+        key="global_embedder_name",
+    )
+    msa_only = st.sidebar.toggle(
+        "Embed in MSA mode",
+        key="global_embed_in_msa_mode",
+    )
     ig_steps = st.sidebar.slider("Integrated Gradients steps", min_value=50, max_value=200, step=10, key="global_ig_steps")
 
     # When the classifier changes, discard stale model-specific results.
@@ -122,6 +138,12 @@ def global_sidebar():
             st.session_state.pop(key, None)
         cache_log(f"Model changed {previous_model} -> {model_name}; cleared prediction state")
     st.session_state["_prev_model_name"] = model_name
+
+    if previous_msa_only is not None and msa_only != previous_msa_only:
+        for key in ("generated_embeddings", "predict_run"):
+            st.session_state.pop(key, None)
+        cache_log(f"Embed in MSA mode changed {previous_msa_only} -> {msa_only}; cleared embeddings and prediction state")
+    st.session_state["_prev_embed_in_msa_mode"] = msa_only
 
     st.sidebar.markdown(
         "<hr style='margin:0.35rem 0 0 0; border:0; border-top:1px solid rgba(156,163,175,0.35);' />",

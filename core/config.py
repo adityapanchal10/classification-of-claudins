@@ -114,7 +114,11 @@ MODEL_REGISTRY = {
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
         "uses_attention": False,
         "checkpoint_file": "simple_linear_classifier.pt",
-        "kwargs": {"n_classes": 3, "dropout": 0.2},
+        "kwargs": { 
+            "n_classes": 3, 
+            "dropout": 0.2,
+            "embedding_dim": 768
+        },
     },
     "Simple CNN Classifier": {
         "class_name": "Simple CNN Classifier",

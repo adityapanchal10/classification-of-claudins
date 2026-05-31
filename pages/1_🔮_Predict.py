@@ -123,10 +123,18 @@ if st.button("Run inference", type="primary"):
         embedder = get_embedder()
         embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
         toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
-        embeddings = embedder.embed_msa(
-            df_valid["sequence"].tolist(),
-            seq_length=seq_length,
-        )
+        msa_only = st.session_state.get("global_embed_in_msa_mode", True)
+        if msa_only:
+            embeddings = embedder.embed_msa(
+                df_valid["sequence"].tolist(),
+                seq_length=seq_length,
+            )
+        else:
+            embeddings = embedder.embed_sequences_per_residue(
+                df_valid["sequence"].tolist(),
+                seq_length=seq_length,
+                batch_size=batch_size,
+            )
 
     bundle = load_classifier_bundle(model_name)
     embeddings_for_model = slice_embeddings(embeddings, residue_slice)

@@ -161,7 +161,7 @@ class MSAEmbedder:
         print(f"[EMBED] Done shape={tuple(output_embeddings.shape)}")
         return output_embeddings  # (N, seq_len, 768)
     
-    def embed_sequences_per_residue(self, sequences, seq_length=190, batch_size=32, is_baseline=False):
+    def embed_sequences_per_residue(self, sequences, seq_length=190, batch_size=1, is_baseline=False):
         if is_baseline:
             print(f"[EMBED] Generating baseline embeddings seq_len={seq_length}")
         else:
