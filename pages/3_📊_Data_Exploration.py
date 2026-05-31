@@ -85,10 +85,18 @@ if run_exploration:
                 embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
                 toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
                 seq_length, batch_size = _infer_embedding_params(df_valid)
-                embeddings = embedder.embed_msa(
-                    df_valid["sequence"].tolist(),
-                    seq_length=seq_length,
-                )
+                msa_only = st.session_state.get("global_embed_in_msa_mode", True) and getattr(embedder, "supports_msa_mode", True)
+                if msa_only:
+                    embeddings = embedder.embed_msa(
+                        df_valid["sequence"].tolist(),
+                        seq_length=seq_length,
+                    )
+                else:
+                    embeddings = embedder.embed_sequences_per_residue(
+                        df_valid["sequence"].tolist(),
+                        seq_length=seq_length,
+                        batch_size=batch_size,
+                    )
                 cache_log("explore cache miss for embeddings; generated fresh embeddings")
                 st.caption(f"Embedding params: seq_length={seq_length}, batch_size={batch_size}")
                 print(f"[PAGE Explore] Embeddings ready n_seq={len(df_valid)}")

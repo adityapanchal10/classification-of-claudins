@@ -10,6 +10,7 @@ except Exception:
     psutil = None
 
 from core.config import MODEL_REGISTRY
+from core.embeddings import DEFAULT_EMBEDDER_NAME, available_embedder_names, embedder_supports_msa_mode
 
 
 DEFAULT_SEQ_LENGTH = 190
@@ -21,7 +22,7 @@ DEFAULT_EMBED_IN_MSA_MODE = True
 
 
 def app_header():
-    st.title("Claudin Classification and Explainability with MSA Transformer Embeddings")
+    st.title("Claudin Classification and Explainability with ESM Embeddings")
     st.caption("Pretrained embedding -> model selection -> prediction -> explainability -> structure")
 
 
@@ -116,18 +117,26 @@ def global_sidebar():
         st.session_state["global_embed_in_msa_mode"] = DEFAULT_EMBED_IN_MSA_MODE
 
     previous_model = st.session_state.get("_prev_model_name")
+    previous_embedder_name = st.session_state.get("_prev_embedder_name")
     previous_msa_only = st.session_state.get("_prev_embed_in_msa_mode")
 
     st.sidebar.header("Global settings")
     model_name = st.sidebar.selectbox("Model", model_options, key="global_model_name")
+    embedder_options = available_embedder_names()
+    if st.session_state.get("global_embedder_name") not in embedder_options:
+        st.session_state["global_embedder_name"] = DEFAULT_EMBEDDER_NAME
     emb = st.sidebar.selectbox(
         "Embedder",
-        [DEFAULT_EMBEDDER_NAME],
+        embedder_options,
         key="global_embedder_name",
     )
+    msa_supported = embedder_supports_msa_mode(emb)
+    if not msa_supported:
+        st.session_state["global_embed_in_msa_mode"] = False
     msa_only = st.sidebar.toggle(
         "Embed in MSA mode",
         key="global_embed_in_msa_mode",
+        disabled=not msa_supported,
     )
     ig_steps = st.sidebar.slider("Integrated Gradients steps", min_value=50, max_value=200, step=10, key="global_ig_steps")
 
@@ -139,8 +148,14 @@ def global_sidebar():
         cache_log(f"Model changed {previous_model} -> {model_name}; cleared prediction state")
     st.session_state["_prev_model_name"] = model_name
 
+    if previous_embedder_name is not None and emb != previous_embedder_name:
+        for key in ("generated_embeddings", "predict_run", "compare_embeddings_msa_only"):
+            st.session_state.pop(key, None)
+        cache_log(f"Embedder changed {previous_embedder_name} -> {emb}; cleared embeddings and prediction state")
+    st.session_state["_prev_embedder_name"] = emb
+
     if previous_msa_only is not None and msa_only != previous_msa_only:
-        for key in ("generated_embeddings", "predict_run"):
+        for key in ("generated_embeddings", "predict_run", "compare_embeddings_msa_only"):
             st.session_state.pop(key, None)
         cache_log(f"Embed in MSA mode changed {previous_msa_only} -> {msa_only}; cleared embeddings and prediction state")
     st.session_state["_prev_embed_in_msa_mode"] = msa_only

@@ -10,7 +10,7 @@ global_sidebar()
 st.markdown(
     """
 ### Overview
-Classify claudin sequences using **ESM MSA-1b** embeddings and a family of trained classifiers.
+Classify claudin sequences using **ESM MSA-1b** and **ESM2** embeddings with a family of trained classifiers.
 Explore what drives the model's predictions with per-residue importance scores and attention maps, and visualise them in the context of the sequence and predicted structure.
 
 | Page | What it does |
@@ -22,7 +22,7 @@ Explore what drives the model's predictions with per-residue importance scores a
 
 Use the **sidebar** to set the active model and IG step count before running inference.
 
-**MSA mode toggle**: The sidebar includes an "Embed in MSA mode" toggle. When enabled, embeddings are generated with full MSA context; when disabled, sequences are embedded independently. (Applicable only when using the MSA Transformer embedder.)
+**MSA mode toggle**: The sidebar includes an "Embed in MSA mode" toggle. When enabled, embeddings are generated with full MSA context; when disabled, sequences are embedded independently. This toggle is disabled automatically when ESM2 is selected.
 
 **ECS-only mode**: Toggle "ECS only" on the Predict or Compare pages and set ECS1/ECS2 ranges (1-based, inclusive). The app still embeds the full MSA, then slices to the ECS regions for inference; explainability plots are shown on the full sequence with non-ECS positions set to zero.
 """

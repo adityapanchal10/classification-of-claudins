@@ -124,7 +124,7 @@ if st.button("Run inference", type="primary"):
         embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
         toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
         msa_only = st.session_state.get("global_embed_in_msa_mode", True)
-        if msa_only:
+        if msa_only and getattr(embedder, "supports_msa_mode", True):
             embeddings = embedder.embed_msa(
                 df_valid["sequence"].tolist(),
                 seq_length=seq_length,
@@ -138,6 +138,14 @@ if st.button("Run inference", type="primary"):
 
     bundle = load_classifier_bundle(model_name)
     embeddings_for_model = slice_embeddings(embeddings, residue_slice)
+    expected_dim = int(MODEL_REGISTRY[model_name]["kwargs"]["embedding_dim"])
+    actual_dim = int(embeddings_for_model.shape[-1])
+    if actual_dim != expected_dim:
+        st.error(
+            f"{model_name} expects {expected_dim}-dim embeddings, but the selected embedder produces {actual_dim}-dim embeddings. "
+            "Please recheck the selected classifier matches the embedder."
+        )
+        st.stop()
     preds, confs, probs, _ = predict_probabilities(bundle, embeddings_for_model, return_attention=False)
     pred_table = build_prediction_table(df_valid, preds, confs, probs)
 
@@ -226,10 +234,16 @@ if (
         # expensive ESM model for a single sequence.
         sample_embedding = embeddings[explain_idx].unsqueeze(0).to(torch.float32)
         sample_embedding = slice_embeddings(sample_embedding, residue_slice)
+        if int(sample_embedding.shape[-1]) != expected_dim:
+            st.error(
+                f"{model_name} expects {expected_dim}-dim embeddings, but the selected embedder produces {int(sample_embedding.shape[-1])}-dim embeddings. "
+                "Please recheck the selected classifier matches the embedder."
+            )
+            st.stop()
 
         sample_preds, sample_confs, _, sample_attn = predict_probabilities(bundle, sample_embedding)
 
-        baseline_embedding = build_baseline_embeddings(sample_embedding.shape[1])
+        baseline_embedding = build_baseline_embeddings(sample_embedding.shape[1], sample_embedding.shape[-1])
         residue_attrs, _ = compute_ig_attributions(
             bundle.classifier,
             sample_embedding,

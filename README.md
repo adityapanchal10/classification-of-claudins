@@ -1,6 +1,6 @@
 # Functional Classification of Claudins — Streamlit App
 
-A multi-page Streamlit application for classifying claudin sequences using MSA Transformer (ESM-MSA-1b) embeddings and a family of trained classifiers. The app supports batch inference, per-residue explainability, side-by-side model comparison, and embedding distribution exploration.
+A multi-page Streamlit application for classifying claudin sequences using ESM embeddings from the MSA Transformer (ESM-MSA-1b) and ESM2, together with a family of trained classifiers. The app supports batch inference, per-residue explainability, side-by-side model comparison, and embedding distribution exploration.
 
 ---
 
@@ -54,11 +54,11 @@ pages/
     2_⚖️_Compare_Models.py      # Side-by-side model comparison
     3_📊_Data_Exploration.py    # PCA embedding visualisation
     4_ℹ️_About_Models.py        # Model registry overview and checkpoint stats
-core/
+`core/`
     config.py                   # CLASS_MAP, MODEL_REGISTRY, path constants
     models.py                   # Classifier architectures and checkpoint loading
     io_utils.py                 # FASTA / plain-text parsing and sequence validation
-    embeddings.py               # ESM-MSA-1b per-residue embedder, ESMFold API helper
+    embeddings.py               # ESM-MSA-1b / ESM2 per-residue embedder, ESMFold API helper
     predict.py                  # predict_probabilities(), build_prediction_table()
     explainability.py           # Integrated Gradients, attention and IG dataframes
     visuals.py                  # Plotly charts: heatmaps, bar charts, PCA plots, structure viewer
@@ -113,7 +113,7 @@ pip install -r requirements.txt
 streamlit run Home.py
 ```
 
-The ESM MSA-1b model weights are downloaded automatically on first run via the `esm` library.  
+The ESM MSA-1b and ESM2 model weights are downloaded automatically on first run via the `esm` library.  
 The trained classifier weights are stored on `GDrive` and fetched from there. Once fetched, all weights are stored locally and re-used.
 ESMFold structure prediction is fetched from the public API at `https://api.esmatlas.com/foldSequence/v1/pdb/` and is optional. Residue importance from IG is written into the structure viewer's B-factors for coloring.
 
@@ -127,7 +127,7 @@ Predict and Compare pages include an **ECS only** toggle. When enabled, you prov
 
 ## MSA Mode Toggle (applicable only for the 'MSA Transformer' Embedder)
 
-The sidebar includes an **Embed in MSA mode** toggle. When enabled, embeddings are generated using the full MSA context; when disabled, the embedder treats each sequence independently. In Compare Models, each model has its own MSA toggle so you can compare MSA-on vs MSA-off behavior side by side.
+The sidebar includes an **Embed in MSA mode** toggle. When enabled, embeddings are generated using the full MSA context; when disabled, the embedder treats each sequence independently. This toggle is disabled automatically when the ESM2 embedder is selected. In Compare Models, each model has its own MSA toggle so you can compare MSA-on vs MSA-off behavior side by side.
 
 ---
 

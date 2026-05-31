@@ -22,6 +22,7 @@ for name, cfg in MODEL_REGISTRY.items():
             "Description": cfg["description"],
             "Architecture": cfg["architecture"],
             "Attention": cfg["uses_attention"],
+            "Compatible Embedder": cfg["compatible_embedder"],
         }
     )
 st.dataframe(pd.DataFrame(rows), width="stretch")

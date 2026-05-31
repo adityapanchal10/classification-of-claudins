@@ -14,10 +14,43 @@ try:
 except Exception:
     esm = None
 
+EMBEDDER_SPECS = {
+    "MSA Transformer": {
+        "model_name": "esm_msa1b_t12_100M_UR50S",
+        "final_layer": 12,
+        "embedding_dim": 768,
+        "supports_msa_mode": True,
+    },
+    "ESM2": {
+        "model_name": "esm2_t30_150M_UR50D",
+        "final_layer": 30,
+        "embedding_dim": 640,
+        "supports_msa_mode": False,
+    },
+}
 
-EMBEDDER_MODEL_NAME = "esm_msa1b_t12_100M_UR50S"
+DEFAULT_EMBEDDER_NAME = "MSA Transformer"
+EMBEDDER_MODEL_NAME = EMBEDDER_SPECS[DEFAULT_EMBEDDER_NAME]["model_name"]
 ESMFOLD_API_URL = "https://api.esmatlas.com/foldSequence/v1/pdb/"
 ESMFOLD_ALLOWED_CHARS = set("ACDEFGHIKLMNPQRSTVWY")
+
+
+def resolve_embedder_spec(model_name: str | None = None) -> dict[str, object]:
+    requested = (model_name or DEFAULT_EMBEDDER_NAME).strip()
+    if requested in EMBEDDER_SPECS:
+        return EMBEDDER_SPECS[requested]
+    for spec in EMBEDDER_SPECS.values():
+        if spec["model_name"] == requested:
+            return spec
+    return EMBEDDER_SPECS[DEFAULT_EMBEDDER_NAME]
+
+
+def available_embedder_names() -> list[str]:
+    return list(EMBEDDER_SPECS.keys())
+
+
+def embedder_supports_msa_mode(model_name: str | None = None) -> bool:
+    return bool(resolve_embedder_spec(model_name)["supports_msa_mode"])
 
 
 def _embedder_checkpoint_paths(model_name: str) -> tuple[Path, Path]:
@@ -85,18 +118,27 @@ def clean_sequence_for_esmfold(sequence: str) -> str:
     return "".join(cleaned)
 
 
-class MSAEmbedder:
+class ESMEmbedder:
     def __init__(self, model_name=EMBEDDER_MODEL_NAME, device=None):
         if esm is None:
             raise ImportError("fair-esm is not installed. Install it from requirements.txt.")
-        self.model_name = model_name
+        spec = resolve_embedder_spec(model_name)
+        self.display_name = next(name for name, item in EMBEDDER_SPECS.items() if item["model_name"] == spec["model_name"])
+        self.model_name = str(spec["model_name"])
+        self.final_layer = int(spec["final_layer"])
+        self.embedding_dim = int(spec["embedding_dim"])
+        self.supports_msa_mode = bool(spec["supports_msa_mode"])
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") if device is None else device
-        try:
-            self.model, self.alphabet = _load_embedder_from_checkpoints(model_name)
-            print(f"[EMBED] Loaded embedder from checkpoints model={model_name}")
-        except Exception:
-            self.model, self.alphabet = _download_and_cache_embedder(model_name)
-            print(f"[EMBED] Downloaded embedder model={model_name}")
+        if self.supports_msa_mode:
+            try:
+                self.model, self.alphabet = _load_embedder_from_checkpoints(self.model_name)
+                print(f"[EMBED] Loaded embedder from checkpoints model={self.model_name}")
+            except Exception:
+                self.model, self.alphabet = _download_and_cache_embedder(self.model_name)
+                print(f"[EMBED] Downloaded embedder model={self.model_name}")
+        else:
+            self.model, self.alphabet = esm.pretrained.load_model_and_alphabet(self.model_name)
+            print(f"[EMBED] Loaded embedder model={self.model_name}")
         self.batch_converter = self.alphabet.get_batch_converter()
         self.model = self.model.to(self.device)
         self.valid_chars = set(self.alphabet.all_toks)
@@ -127,8 +169,15 @@ class MSAEmbedder:
             max_msa_depth: max sequences per forward pass (GPU memory limit)
 
         Returns:
-            Tensor of shape (N, seq_length, 768)
+            Tensor of shape (N, seq_length, embedding_dim)
         """
+        if not self.supports_msa_mode:
+            return self.embed_sequences_per_residue(
+                sequences,
+                seq_length=seq_length,
+                batch_size=len(sequences),
+            )
+
         sequences = self._clean_sequences(sequences)
         sequences = self.pad_or_truncate(sequences, seq_length) if seq_length is not None else sequences
         N = len(sequences)
@@ -147,19 +196,19 @@ class MSAEmbedder:
             batch_tokens = batch_tokens.to(self.device)
 
             with torch.no_grad():
-                results = self.model(batch_tokens, repr_layers=[12], return_contacts=False)
+                results = self.model(batch_tokens, repr_layers=[self.final_layer], return_contacts=False)
 
-            # Extract representations: (1, depth, seq_len+1, 768)
-            token_emb = results["representations"][12]
-            token_emb = token_emb[:, :, 1:, :]    # Remove BOS → (1, depth, seq_len, 768)
-            token_emb = token_emb.squeeze(0)       # → (depth, seq_len, 768)
+            # Extract representations: (1, depth, seq_len+1, embedding_dim)
+            token_emb = results["representations"][self.final_layer]
+            token_emb = token_emb[:, :, 1:, :]    # Remove BOS → (1, depth, seq_len, embedding_dim)
+            token_emb = token_emb.squeeze(0)       # → (depth, seq_len, embedding_dim)
 
             all_embeddings.append(token_emb.cpu())
 
         output_embeddings = torch.cat(all_embeddings, dim=0)
         assert len(output_embeddings.shape) == 3, f"Unexpected shape: {output_embeddings.shape}"
         print(f"[EMBED] Done shape={tuple(output_embeddings.shape)}")
-        return output_embeddings  # (N, seq_len, 768)
+        return output_embeddings  # (N, seq_len, embedding_dim)
     
     def embed_sequences_per_residue(self, sequences, seq_length=190, batch_size=1, is_baseline=False):
         sequences = self._clean_sequences(sequences)
@@ -178,13 +227,21 @@ class MSAEmbedder:
             end = min(start + batch_size, len(sequences))
             batch = sequences[start:end]
 
-            msa_inputs = [[(f"seq{i}", seq)] for i, seq in enumerate(batch)]
-            _, _, batch_tokens = self.batch_converter(msa_inputs)
+            if self.supports_msa_mode:
+                msa_inputs = [[(f"seq{start + i}", seq)] for i, seq in enumerate(batch)]
+                _, _, batch_tokens = self.batch_converter(msa_inputs)
+            else:
+                batch_inputs = [(f"seq{start + i}", seq) for i, seq in enumerate(batch)]
+                _, _, batch_tokens = self.batch_converter(batch_inputs)
             batch_tokens = batch_tokens.to(self.device)
             with torch.no_grad():
-                results = self.model(batch_tokens, repr_layers=[12], return_contacts=False)
-            token_emb = results["representations"][12]
-            token_emb = token_emb[:, 0, 1:, :]
+                results = self.model(batch_tokens, repr_layers=[self.final_layer], return_contacts=False)
+            token_emb = results["representations"][self.final_layer]
+            if self.supports_msa_mode:
+                token_emb = token_emb[:, 0, 1:, :]
+            else:
+                # ESM2 adds both BOS and EOS tokens; remove both.
+                token_emb = token_emb[:, 1:-1, :]
             all_embeddings.append(token_emb.cpu())
 
         embeddings = torch.cat(all_embeddings, dim=0)
@@ -195,7 +252,7 @@ class MSAEmbedder:
         return embeddings
 
 
-def get_embedder(model_name: str = EMBEDDER_MODEL_NAME) -> MSAEmbedder:
+def get_embedder(model_name: str | None = None) -> ESMEmbedder:
     """Return a session-scoped embedder singleton.
 
     The heavy ESM model is kept in ``st.session_state`` so it survives across
@@ -203,8 +260,13 @@ def get_embedder(model_name: str = EMBEDDER_MODEL_NAME) -> MSAEmbedder:
     requested *model_name* differs from the cached one the old instance is
     released first so memory is freed before the new one is allocated.
     """
-    cached: MSAEmbedder | None = st.session_state.get("_embedder_instance")
-    if cached is not None and cached.model_name == model_name:
+    if model_name is None:
+        model_name = st.session_state.get("global_embedder_name", DEFAULT_EMBEDDER_NAME)
+
+    spec = resolve_embedder_spec(model_name)
+    requested_model_name = str(spec["model_name"])
+    cached: ESMEmbedder | None = st.session_state.get("_embedder_instance")
+    if cached is not None and cached.model_name == requested_model_name:
         return cached
 
     # Release previous instance before allocating a new one.
@@ -217,7 +279,7 @@ def get_embedder(model_name: str = EMBEDDER_MODEL_NAME) -> MSAEmbedder:
             torch.cuda.empty_cache()
         print("[EMBED] Released previous embedder")
 
-    embedder = MSAEmbedder(model_name=model_name)
+    embedder = ESMEmbedder(model_name=requested_model_name)
     st.session_state["_embedder_instance"] = embedder
     return embedder
 
