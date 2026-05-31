@@ -339,7 +339,7 @@ if (
         st.subheader("Structure")
         structure_style = st.radio(
             "Structure style",
-            ["sticks", "cartoon", "line", "sphere"],
+            ["cartoon", "sticks", "line", "sphere"],
             index=0,
             horizontal=True,
             key=f"structure_style_{explain_idx}",

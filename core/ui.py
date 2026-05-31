@@ -17,7 +17,6 @@ DEFAULT_SEQ_LENGTH = 190
 DEFAULT_BATCH_SIZE = 64
 DEFAULT_IG_STEPS = 50
 DEFAULT_ENABLE_MEMORY_LOGS = False
-DEFAULT_EMBEDDER_NAME = "MSA Transformer"
 DEFAULT_EMBED_IN_MSA_MODE = True
 
 
@@ -114,7 +113,7 @@ def global_sidebar():
     if "global_embedder_name" not in st.session_state:
         st.session_state["global_embedder_name"] = DEFAULT_EMBEDDER_NAME
     if "global_embed_in_msa_mode" not in st.session_state:
-        st.session_state["global_embed_in_msa_mode"] = True
+        st.session_state["global_embed_in_msa_mode"] = DEFAULT_EMBED_IN_MSA_MODE
 
     previous_model = st.session_state.get("_prev_model_name")
     previous_embedder_name = st.session_state.get("_prev_embedder_name")
