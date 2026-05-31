@@ -66,7 +66,7 @@ MODEL_REGISTRY = {
         "uses_attention": True,
         "checkpoint_file": "transformer_mlp_classifier.pt",
         "kwargs": {
-            "input_dim": 768,
+            "embedding_dim": 768,
             "proj_dim": 128,
             "num_classes": 3,
             "num_heads": 4,
@@ -82,7 +82,7 @@ MODEL_REGISTRY = {
         "uses_attention": True,
         "checkpoint_file": "transformer_mlp_classifier_single_fasta.pt",
         "kwargs": {
-            "input_dim": 768,
+            "embedding_dim": 768,
             "proj_dim": 128,
             "num_classes": 3,
             "num_heads": 4,
@@ -99,7 +99,7 @@ MODEL_REGISTRY = {
         "checkpoint_file": "transformer_mlp_classifier_single_fasta_ecs_only.pt",
         "residue_slice": [(27, 81), (138, 164)],
         "kwargs": {
-            "input_dim": 768,
+            "embedding_dim": 768,
             "proj_dim": 128,
             "num_classes": 3,
             "num_heads": 4,

@@ -11,6 +11,8 @@ import streamlit as st
 
 from core.config import CHECKPOINTS_DIR, MODEL_REGISTRY, resolve_checkpoint_url
 
+_MAX_CACHED_CLASSIFIERS = 2
+
 
 class ResidualMLPBlock(nn.Module):
     def __init__(self, dim, hidden_dim=None, dropout=0.4):
@@ -71,7 +73,7 @@ class AttentionPool(nn.Module):
 class TransformerMLPClassifier(nn.Module):
     def __init__(
         self,
-        input_dim=768,          # ESM embedding dim — fixed
+        embedding_dim=768,          # ESM embedding dim — fixed
         proj_dim=128,
         num_classes=3,
         num_heads=4,
@@ -83,7 +85,7 @@ class TransformerMLPClassifier(nn.Module):
 
         # ── Stage 1: Project ESM embeddings down to a manageable size ─────────
         self.input_proj = nn.Sequential(
-            nn.Linear(input_dim, proj_dim),   # 768 → 128
+            nn.Linear(embedding_dim, proj_dim),   # 768 → 128
             nn.LayerNorm(proj_dim),
             nn.Dropout(dropout)
         )
@@ -169,14 +171,14 @@ class TransformerMLPClassifier(nn.Module):
 
 
 class SimpleLinearClassifier(nn.Module):
-    def __init__(self, n_classes=3, dropout=0.2):
+    def __init__(self, n_classes=3, dropout=0.2, embedding_dim=768):
         super().__init__()
         self.n_classes = n_classes
-        self.norm = nn.LayerNorm(768)
+        self.norm = nn.LayerNorm(embedding_dim)
         # attention scores per residue
-        self.attn = nn.Linear(768, 1)
+        self.attn = nn.Linear(embedding_dim, 1)
         self.dropout = nn.Dropout(dropout)
-        self.fc = nn.Linear(768, n_classes)
+        self.fc = nn.Linear(embedding_dim, n_classes)
 
     def forward(self, x, mask=None):
         # x: (B, L, 768)
@@ -527,9 +529,6 @@ def _load_classifier_bundle_from_disk(model_name: str) -> LoadedModelBundle:
         description=cfg["description"],
         architecture=cfg["architecture"],
     )
-
-
-_MAX_CACHED_CLASSIFIERS = 2
 
 
 def load_classifier_bundle(model_name: str) -> LoadedModelBundle:
