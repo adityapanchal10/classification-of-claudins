@@ -24,13 +24,11 @@ from core.predict import (
     slice_sequence,
     expand_scores_to_full,
 )
-from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, memory_log, toast_once
+from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, memory_log, toast_once
 from core.visuals import plot_residue_boxplot
 
 st.set_page_config(page_title="Compare Models", layout="wide", page_icon="🧬")
 st.logo("🧬")
-
-global_sidebar()
 
 
 st.title("Compare Models")
