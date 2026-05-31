@@ -121,13 +121,29 @@ def global_sidebar():
 
     st.sidebar.header("Global settings")
     embedder_options = available_embedder_names()
-    if st.session_state.get("global_embedder_name") not in embedder_options:
-        st.session_state["global_embedder_name"] = DEFAULT_EMBEDDER_NAME
+    
+    # Read current embedder preference from session state
+    current_embedder = st.session_state.get("global_embedder_name", DEFAULT_EMBEDDER_NAME)
+    if current_embedder not in embedder_options:
+        current_embedder = DEFAULT_EMBEDDER_NAME
+    
+    # Find the index to display
+    try:
+        embedder_index = embedder_options.index(current_embedder)
+    except ValueError:
+        embedder_index = 0
+    
+    # Create selectbox without key, manually handling state
     emb = st.sidebar.selectbox(
         "Embedder",
         embedder_options,
-        key="global_embedder_name",
+        index=embedder_index,
     )
+    
+    # Update session state if embedder changed
+    if emb != current_embedder:
+        st.session_state["global_embedder_name"] = emb
+    
     msa_supported = embedder_supports_msa_mode(emb)
     
     # Read the current preference from session state
@@ -166,10 +182,28 @@ def global_sidebar():
         model_options = all_models
         st.sidebar.info(f"No models found compatible with {emb}; showing all models.")
 
-    if st.session_state.get("global_model_name") not in model_options:
-        st.session_state["global_model_name"] = model_options[0]
-
-    model_name = st.sidebar.selectbox("Model", model_options, key="global_model_name")
+    # Read current model preference from session state
+    current_model = st.session_state.get("global_model_name")
+    if current_model not in model_options:
+        current_model = model_options[0]
+    
+    # Find the index to display
+    try:
+        model_index = model_options.index(current_model)
+    except ValueError:
+        model_index = 0
+    
+    # Create selectbox without key, manually handling state
+    model_name = st.sidebar.selectbox(
+        "Model",
+        model_options,
+        index=model_index,
+    )
+    
+    # Update session state if model changed
+    if model_name != current_model:
+        st.session_state["global_model_name"] = model_name
+    
     ig_steps = st.sidebar.slider("Integrated Gradients steps", min_value=50, max_value=200, step=10, key="global_ig_steps")
 
     # When the classifier changes, discard stale model-specific results.
