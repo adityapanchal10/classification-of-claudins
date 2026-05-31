@@ -149,13 +149,25 @@ def global_sidebar():
     st.session_state["_prev_model_name"] = model_name
 
     if previous_embedder_name is not None and emb != previous_embedder_name:
-        for key in ("generated_embeddings", "predict_run", "compare_embeddings_msa_only"):
+        for key in (
+            "generated_embeddings",
+            "generated_embeddings_embedder",
+            "generated_embeddings_msa_only",
+            "predict_run",
+            "compare_embeddings_msa_only",
+        ):
             st.session_state.pop(key, None)
         cache_log(f"Embedder changed {previous_embedder_name} -> {emb}; cleared embeddings and prediction state")
     st.session_state["_prev_embedder_name"] = emb
 
     if previous_msa_only is not None and msa_only != previous_msa_only:
-        for key in ("generated_embeddings", "predict_run", "compare_embeddings_msa_only"):
+        for key in (
+            "generated_embeddings",
+            "generated_embeddings_embedder",
+            "generated_embeddings_msa_only",
+            "predict_run",
+            "compare_embeddings_msa_only",
+        ):
             st.session_state.pop(key, None)
         cache_log(f"Embed in MSA mode changed {previous_msa_only} -> {msa_only}; cleared embeddings and prediction state")
     st.session_state["_prev_embed_in_msa_mode"] = msa_only

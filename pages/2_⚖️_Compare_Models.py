@@ -2,7 +2,13 @@ import streamlit as st
 import torch
 
 from core.config import CLASS_MAP, MODEL_REGISTRY
-from core.embeddings import build_baseline_embeddings, embedder_supports_msa_mode, get_embedder
+from core.embeddings import (
+    DEFAULT_EMBEDDER_NAME,
+    available_embedder_names,
+    build_baseline_embeddings,
+    embedder_supports_msa_mode,
+    get_embedder,
+)
 from core.explainability import (
     attention_dataframe,
     compute_ig_attributions,
@@ -32,13 +38,17 @@ seq_length = DEFAULT_SEQ_LENGTH
 batch_size = DEFAULT_BATCH_SIZE
 ig_steps = st.session_state.get("global_ig_steps", 50)
 global_msa_default = st.session_state.get("global_embed_in_msa_mode", True)
-active_embedder_name = st.session_state.get("global_embedder_name", "MSA Transformer")
-msa_mode_supported = embedder_supports_msa_mode(active_embedder_name)
+default_embedder_name = st.session_state.get("global_embedder_name", DEFAULT_EMBEDDER_NAME)
+embedder_options = available_embedder_names()
+if default_embedder_name not in embedder_options:
+    default_embedder_name = DEFAULT_EMBEDDER_NAME
 
 # Sequence source (mirrors Data Exploration pre-stored flow).
 predict_run = st.session_state.get("predict_run")
 pre_stored_df = st.session_state.get("input_sequences_df", None)
 pre_stored_embeddings = st.session_state.get("generated_embeddings", None)
+pre_stored_embeddings_embedder = st.session_state.get("generated_embeddings_embedder")
+pre_stored_embeddings_msa_only = st.session_state.get("generated_embeddings_msa_only")
 
 st.subheader("Sequence Input")
 df_valid = None
@@ -50,8 +60,6 @@ if pre_stored_df is not None:
     if use_pre_stored:
         df_valid = pre_stored_df.copy()
         embeddings_all = pre_stored_embeddings
-        if embeddings_all is not None:
-            st.session_state["compare_embeddings_msa_only"] = global_msa_default
     else:
         uploaded = st.file_uploader("Upload FASTA for comparison", type=["fasta", "fa", "faa", "txt"], key="cmp_fasta")
         text_value = st.text_area("Or paste FASTA / one-sequence-per-line text", height=140, key="cmp_text")
@@ -88,7 +96,6 @@ if embeddings_all is not None:
         embeddings_all = embeddings_all[:sequence_count]
     else:
         embeddings_all = embeddings_all[:sequence_count, :, :]
-embeddings_all_msa_only = st.session_state.get("compare_embeddings_msa_only") if embeddings_all is not None else None
 
 preselected_idx = 0
 if predict_run is not None:
@@ -118,15 +125,21 @@ default_model = st.session_state.get("global_model_name", models[0])
 default_index = models.index(default_model) if default_model in models else 0
 col_model_a, col_model_b = st.columns(2)
 with col_model_a:
-    left_model = st.selectbox("Model A", models, index=default_index, key="cmp_a")
-    if not msa_mode_supported:
+    if st.session_state.get("cmp_a_embedder") not in embedder_options:
+        st.session_state["cmp_a_embedder"] = default_embedder_name
+    left_embedder = st.selectbox("Embedder A", embedder_options, key="cmp_a_embedder")
+    left_msa_supported = embedder_supports_msa_mode(left_embedder)
+    if not left_msa_supported:
         st.session_state["cmp_a_msa_only"] = False
+    elif "cmp_a_msa_only" not in st.session_state:
+        st.session_state["cmp_a_msa_only"] = global_msa_default
     left_msa_only = st.toggle(
         "Embed in MSA mode",
-        value=global_msa_default and msa_mode_supported,
+        value=st.session_state["cmp_a_msa_only"],
         key="cmp_a_msa_only",
-        disabled=not msa_mode_supported,
+        disabled=not left_msa_supported,
     )
+    left_model = st.selectbox("Model A", models, index=default_index, key="cmp_a")
     left_defaults = resolve_residue_slice(MODEL_REGISTRY[left_model])
     left_ecs_default = left_defaults is not None
     left_ecs_only = st.checkbox("ECS only", value=left_ecs_default, key="cmp_a_ecs_only")
@@ -170,15 +183,21 @@ with col_model_a:
             key="cmp_a_ecs2_end",
         )
 with col_model_b:
-    right_model = st.selectbox("Model B", models, index=min(0, len(models)-1), key="cmp_b")
-    if not msa_mode_supported:
+    if st.session_state.get("cmp_b_embedder") not in embedder_options:
+        st.session_state["cmp_b_embedder"] = default_embedder_name
+    right_embedder = st.selectbox("Embedder B", embedder_options, key="cmp_b_embedder")
+    right_msa_supported = embedder_supports_msa_mode(right_embedder)
+    if not right_msa_supported:
         st.session_state["cmp_b_msa_only"] = False
+    elif "cmp_b_msa_only" not in st.session_state:
+        st.session_state["cmp_b_msa_only"] = global_msa_default
     right_msa_only = st.toggle(
         "Embed in MSA mode",
-        value=global_msa_default and msa_mode_supported,
+        value=st.session_state["cmp_b_msa_only"],
         key="cmp_b_msa_only",
-        disabled=not msa_mode_supported,
+        disabled=not right_msa_supported,
     )
+    right_model = st.selectbox("Model B", models, index=min(0, len(models)-1), key="cmp_b")
     right_defaults = resolve_residue_slice(MODEL_REGISTRY[right_model])
     right_ecs_default = right_defaults is not None
     right_ecs_only = st.checkbox("ECS only", value=right_ecs_default, key="cmp_b_ecs_only")
@@ -225,47 +244,59 @@ with col_model_b:
 if st.button("Run comparison", type="primary"):
     print(f"[PAGE Compare] Run comparison A={left_model} B={right_model} idx={selected_idx}")
     cols = st.columns(2)
-    embedder_ref = {"obj": None}
+    embedder_ref = {}
     embeddings_cache = {}
 
-    def _get_embeddings_for_mode(msa_only: bool):
-        effective_msa_only = bool(msa_only and msa_mode_supported)
-        if effective_msa_only in embeddings_cache:
-            return embeddings_cache[effective_msa_only]
+    def _get_embeddings_for_model(embedder_name: str, msa_only: bool):
+        effective_msa_only = bool(msa_only and embedder_supports_msa_mode(embedder_name))
+        cache_key = (embedder_name, effective_msa_only)
+        if cache_key in embeddings_cache:
+            return embeddings_cache[cache_key]
 
-        if effective_msa_only and embeddings_all is not None and embeddings_all_msa_only is not None and effective_msa_only == embeddings_all_msa_only:
-            embeddings_cache[effective_msa_only] = embeddings_all
-            return embeddings_cache[effective_msa_only]
+        if (
+            embeddings_all is not None
+            and pre_stored_embeddings_embedder == embedder_name
+            and pre_stored_embeddings_msa_only == effective_msa_only
+        ):
+            if effective_msa_only:
+                embeddings_cache[cache_key] = embeddings_all
+            else:
+                embeddings_cache[cache_key] = embeddings_all[selected_idx:selected_idx + 1]
+            return embeddings_cache[cache_key]
 
-        if embedder_ref["obj"] is None:
-            embedder_ref["obj"] = get_embedder()
-            embedder_name = getattr(embedder_ref["obj"], "model_name", "esm_msa1b_t12_100M_UR50S")
-            toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
+        if embedder_name not in embedder_ref:
+            embedder_ref[embedder_name] = get_embedder(embedder_name)
+            embedder_name_resolved = getattr(embedder_ref[embedder_name], "model_name", embedder_name)
+            toast_once("_embedder_ready_toast_shown", embedder_name_resolved, f"⚗️ Embedder ready: {embedder_name_resolved}")
 
+        embedder = embedder_ref[embedder_name]
         if effective_msa_only:
-            embeddings_cache[effective_msa_only] = embedder_ref["obj"].embed_msa(
+            embeddings_cache[cache_key] = embedder.embed_msa(
                 df_valid["sequence"].tolist(),
                 seq_length=seq_length,
             )
         else:
-            embeddings_cache[effective_msa_only] = embedder_ref["obj"].embed_sequences_per_residue(
+            embeddings_cache[cache_key] = embedder.embed_sequences_per_residue(
                 [selected_row["sequence"]],
                 seq_length=seq_length,
                 batch_size=batch_size,
             )
-        return embeddings_cache[effective_msa_only]
+        return embeddings_cache[cache_key]
 
-    def _get_sample_embedding(msa_only: bool):
-        embeddings_for_mode = _get_embeddings_for_mode(msa_only)
-        if msa_only:
+    def _get_sample_embedding(embedder_name: str, msa_only: bool):
+        embeddings_for_mode = _get_embeddings_for_model(embedder_name, msa_only)
+        effective_msa_only = bool(msa_only and embedder_supports_msa_mode(embedder_name))
+        if effective_msa_only:
             return embeddings_for_mode[selected_idx].unsqueeze(0)
         return embeddings_for_mode[0].unsqueeze(0)
 
-    for slot, (col, model_name) in enumerate(zip(cols, [left_model, right_model])):
+    for slot, (col, model_name, embedder_name, msa_only_setting) in enumerate(
+        zip(cols, [left_model, right_model], [left_embedder, right_embedder], [left_msa_only, right_msa_only])
+    ):
         bundle = load_classifier_bundle(model_name)
         expected_dim = int(MODEL_REGISTRY[model_name]["kwargs"]["embedding_dim"])
         if slot == 0:
-            msa_only = left_msa_only
+            msa_only = msa_only_setting
             if left_ecs_only:
                 ecs1_start = int(max(1, left_ecs1_start))
                 ecs1_end = int(max(ecs1_start, left_ecs1_end))
@@ -275,7 +306,7 @@ if st.button("Run comparison", type="primary"):
             else:
                 residue_slice = None
         else:
-            msa_only = right_msa_only
+            msa_only = msa_only_setting
             if right_ecs_only:
                 ecs1_start = int(max(1, right_ecs1_start))
                 ecs1_end = int(max(ecs1_start, right_ecs1_end))
@@ -284,12 +315,12 @@ if st.button("Run comparison", type="primary"):
                 residue_slice = [(ecs1_start - 1, ecs1_end), (ecs2_start - 1, ecs2_end)]
             else:
                 residue_slice = None
-        sample_embedding = _get_sample_embedding(msa_only).to(torch.float32)
+        sample_embedding = _get_sample_embedding(embedder_name, msa_only).to(torch.float32)
         sample_embedding = slice_embeddings(sample_embedding, residue_slice)
         if int(sample_embedding.shape[-1]) != expected_dim:
             with col:
                 st.error(
-                    f"{model_name} expects {expected_dim}-dim embeddings, but the selected embedder produces {int(sample_embedding.shape[-1])}-dim embeddings. "
+                    f"{model_name} expects {expected_dim}-dim embeddings, but {embedder_name} produces {int(sample_embedding.shape[-1])}-dim embeddings. "
                     "Please recheck the selected classifier matches the embedder."
                 )
             continue

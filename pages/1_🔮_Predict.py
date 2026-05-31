@@ -158,6 +158,8 @@ if st.button("Run inference", type="primary"):
         cache_log(f"Stored predict embeddings shape={tuple(st.session_state.generated_embeddings.shape)}")
     else:
         cache_log("Stored predict embeddings")
+    st.session_state.generated_embeddings_embedder = getattr(embedder, "display_name", embedder_name)
+    st.session_state.generated_embeddings_msa_only = bool(msa_only and getattr(embedder, "supports_msa_mode", True))
     st.session_state.predict_run = {
         "model_name": model_name,
         "ecs_only": ecs_only,
