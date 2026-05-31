@@ -129,13 +129,27 @@ def global_sidebar():
         key="global_embedder_name",
     )
     msa_supported = embedder_supports_msa_mode(emb)
-    if not msa_supported:
-        st.session_state["global_embed_in_msa_mode"] = False
-    msa_only = st.sidebar.toggle(
+    
+    # Read the current preference from session state
+    current_msa_preference = st.session_state.get("global_embed_in_msa_mode", DEFAULT_EMBED_IN_MSA_MODE)
+    
+    # Create the toggle without a key, manually handling the state
+    msa_toggle_value = st.sidebar.toggle(
         "Embed in MSA mode",
-        key="global_embed_in_msa_mode",
+        value=current_msa_preference,
         disabled=not msa_supported,
     )
+    
+    # Determine the effective MSA mode:
+    # If the embedder doesn't support MSA, force it to False regardless of toggle
+    if not msa_supported:
+        msa_only = False
+    else:
+        msa_only = msa_toggle_value
+    
+    # Update session state only if the effective value changed
+    if msa_only != current_msa_preference:
+        st.session_state["global_embed_in_msa_mode"] = msa_only
     # Filter available models to those compatible with the selected embedder.
     model_options = []
     for mn, meta in MODEL_REGISTRY.items():
