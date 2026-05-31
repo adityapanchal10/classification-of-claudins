@@ -34,12 +34,16 @@ Three-class channel-protein classification:
 | **Transformer + MLP** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
 | **Transformer + MLP 2** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
 | **Transformer + MLP 2 (ECS only)** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | ✅ |
+| **Transformer + MLP 2 ESM2** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head (trained on ESM2 embeddings) | ✅ |
+| **Transformer + MLP 2 ESM2 (ECS only)** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head (trained on ESM2 embeddings, ECS-only) | ✅ |
 | **Simple Linear** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head | ❌ |
 | **Simple CNN** | LayerNorm → parallel Conv2d (kernels 3/4/5) → ReLU → global max pooling → concat → dropout → linear head | ❌ |
 | **Transformer (simple)** | Positional embedding add → TransformerEncoder → mean pooling → 2-layer MLP head | ✅ |
 | **Transformer (complex)** | Input projection → positional embedding → residual Conv1d blocks → attention pooling → MLP head | ✅ |
 
 Checkpoints live in `checkpoints/`. Each `.pt` file stores the model weights and optionally training metrics (`epoch`, `val_auc`, `acc`, `loss`, and `% class errors`).
+
+Note: Models suffixed with `ESM2` were trained on ESM2 (640-d) embeddings and therefore require the `ESM2` embedder to be selected. The app filters model lists by the selected embedder to prevent mismatched pairings.
 
 ---
 
@@ -75,6 +79,8 @@ Pages share data through `st.session_state`:
 |---|---|---|
 | `input_sequences_df` | Predict | Compare Models, Data Exploration |
 | `generated_embeddings` | Predict | Compare Models, Data Exploration |
+| `generated_embeddings_embedder` | Predict | Tracks which embedder was used for `generated_embeddings` |
+| `generated_embeddings_msa_only` | Predict | Tracks whether the cached `generated_embeddings` were produced in MSA mode |
 | `predict_run` | Predict | Compare Models (pre-selects inspected sequence) |
 | `global_model_name` | Sidebar / any page | All pages |
 | `global_ig_steps` | Sidebar | Predict, Compare Models |
@@ -128,6 +134,18 @@ Predict and Compare pages include an **ECS only** toggle. When enabled, you prov
 ## MSA Mode Toggle (applicable only for the 'MSA Transformer' Embedder)
 
 The sidebar includes an **Embed in MSA mode** toggle. When enabled, embeddings are generated using the full MSA context; when disabled, the embedder treats each sequence independently. This toggle is disabled automatically when the ESM2 embedder is selected. In Compare Models, each model has its own MSA toggle so you can compare MSA-on vs MSA-off behavior side by side.
+
+---
+
+## Embedder Options and Compatibility
+
+- **MSA Transformer (ESM-MSA-1b)**: supports MSA mode and produces 768-dimensional per-residue embeddings. Token handling for this model removes the leading BOS token when converting model outputs to per-residue embeddings.
+- **ESM2**: does not support MSA mode in this app and produces 640-dimensional per-residue embeddings. ESM2 appends both BOS and EOS tokens to sequences; the app removes both when producing per-residue embeddings.
+
+Important compatibility notes:
+- Classifier checkpoints are tied to an embedding dimensionality. 
+- The sidebar model dropdown is filtered to show only models explicitly marked as compatible with the currently selected embedder (fallback to showing all models if none are marked compatible). This prevents accidental mismatches.
+- The Compare page exposes per-column embedder selectors (Embedder A / Embedder B). Each column's Model dropdown is filtered to models compatible with that column's selected embedder; pre-stored embeddings from the Predict page are only reused when the embedder name and MSA-mode match.
 
 ---
 
