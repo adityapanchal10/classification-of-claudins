@@ -15,6 +15,18 @@ def _infer_embedding_params(df_valid):
 
     return seq_length, batch_size
 
+
+def _enable_pca_distribution():
+    st.session_state["_explore_show_pca"] = True
+
+
+def _perplexity_help_text():
+    return (
+        "Perplexity controls how many nearby points t-SNE considers when forming clusters. "
+        "Smaller values emphasize local neighborhoods; larger values give a broader view. "
+        "Use a value between 5 and 50, and keep it below the number of plotted residues."
+    )
+
 global_sidebar()
 
 st.title("Data Exploration")
@@ -41,6 +53,11 @@ df = None
 embeddings = None
 using_pre_stored_data = False
 
+explore_active = bool(st.session_state.get("_explore_active", False))
+explore_cached_df = st.session_state.get("_explore_df")
+explore_cached_embeddings = st.session_state.get("_explore_embeddings")
+explore_cached_using_pre_stored = bool(st.session_state.get("_explore_using_pre_stored", False))
+
 if pre_stored_df is not None:
     st.info("📌 Using sequences and embeddings from Predict page")
     use_pre_stored = st.checkbox("Use pre-stored data", value=True)
@@ -60,7 +77,16 @@ else:
     if uploaded is not None or text_value.strip():
         df = validate_sequences(detect_input_dataframe(text_value, uploaded))
 
-run_exploration = using_pre_stored_data or st.button("Run exploration", type="primary")
+if explore_active:
+    if df is None and explore_cached_df is not None:
+        df = explore_cached_df.copy()
+    if embeddings is None and explore_cached_embeddings is not None:
+        embeddings = explore_cached_embeddings
+    if not using_pre_stored_data:
+        using_pre_stored_data = explore_cached_using_pre_stored
+
+run_exploration_clicked = st.button("Run exploration", type="primary")
+run_exploration = using_pre_stored_data or run_exploration_clicked or explore_active
 if run_exploration and not using_pre_stored_data:
     print("[PAGE Explore] Run exploration")
 
@@ -73,6 +99,9 @@ if run_exploration:
     if df_valid.empty:
         st.error("No valid amino acid sequences were found.")
         st.stop()
+
+    st.session_state["_explore_active"] = True
+    st.session_state["_explore_using_pre_stored"] = using_pre_stored_data
 
     # Embedding visualization section
     st.subheader("Embedding Visualization")
@@ -103,6 +132,10 @@ if run_exploration:
         except Exception as e:
             st.error(f"Error generating embeddings: {str(e)}")
             embeddings = None
+
+    if embeddings is not None:
+        st.session_state["_explore_df"] = df_valid.copy()
+        st.session_state["_explore_embeddings"] = embeddings
     
     if embeddings is not None:
         # Validate embeddings shape
@@ -180,12 +213,33 @@ if run_exploration:
                 residues_list = [list(seq) for seq in filtered_df["sequence"].values]
                 ids_list = filtered_df["description"].tolist()
 
+                max_valid_perplexity = max(2, min(50, len(selected_indices) * max(1, len(residues_list[0]) if residues_list else 1) - 1))
+                default_perplexity = min(30, max(5, max_valid_perplexity // 3))
+                with st.columns([1, 5])[0]:
+                    perplexity = st.number_input(
+                        "t-SNE perplexity",
+                        min_value=2,
+                        max_value=max_valid_perplexity,
+                        value=default_perplexity,
+                        step=1,
+                        help=_perplexity_help_text(),
+                    )
+                st.markdown(
+                    "<p style='margin-top:-0.25rem; margin-bottom:0.7rem; color:#94a3b8; font-size:0.85rem;'>"
+                    "Perplexity controls the effective neighborhood size t-SNE uses."
+                    "\nSmaller values emphasize local clusters."
+                    "\nLarger values spread points based on a broader neighborhood view."
+                    "</p>",
+                    unsafe_allow_html=True,
+                )
+
                 with st.spinner("Generating t-SNE plots"):
                     plot_residue_embeddings_tsne(
                         ids=ids_list,
                         residues=residues_list,
                         embeddings=filtered_embeddings,
                         max_plot_sequences=len(selected_indices),
+                        perplexity=int(perplexity),
                     )
 
                 st.divider()
@@ -198,11 +252,6 @@ if run_exploration:
                         value=min(3, D),
                         step=1,
                     )
-                show_pca_btn = st.button('Show pca distribution')
-                viz_mode = "pca"
-
-                
-
                 st.markdown(
                     "<p style='margin-top:-0.25rem; margin-bottom:0.7rem; color:#94a3b8; font-size:0.85rem;'>"
                     "The PCA plots are built only from the sequences selected above. If the selection is changed, the plots can "
@@ -212,7 +261,9 @@ if run_exploration:
                     "</p>",
                     unsafe_allow_html=True,
                 )
-                if show_pca_btn:
+                st.button("Show pca distribution", on_click=_enable_pca_distribution, key="explore_show_pca_button")
+
+                if st.session_state.get("_explore_show_pca", False):
                     print(f"[PAGE Explore] Show PCA n_seq={len(selected_indices)} pcs={n_pcs}")
                     with st.spinner("Generating PCA plots..."):
                         visualize_sequence_residue_embeddings(
@@ -220,7 +271,7 @@ if run_exploration:
                             residues=residues_list,
                             embeddings=filtered_embeddings,
                             max_plot_sequences=len(selected_indices),
-                            mode=viz_mode,
+                            mode="pca",
                             n_pcs=n_pcs,
                         )
                     memory_log("explore.show_pca.done")

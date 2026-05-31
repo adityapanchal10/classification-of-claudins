@@ -905,7 +905,7 @@ def visualize_sequence_residue_embeddings(
     return results
 
 
-def plot_residue_embeddings_tsne(ids, residues, embeddings, max_plot_sequences=None):
+def plot_residue_embeddings_tsne(ids, residues, embeddings, max_plot_sequences=None, perplexity: int | None = None):
     """Plot a 2D t-SNE projection of residue embeddings."""
     if hasattr(embeddings, "detach"):
         E = embeddings.detach().float().cpu().numpy()
@@ -949,7 +949,10 @@ def plot_residue_embeddings_tsne(ids, residues, embeddings, max_plot_sequences=N
         st.info("Not enough residue embeddings to compute t-SNE.")
         return None
 
-    perplexity = max(2, min(30, (Xz.shape[0] - 1) // 3))
+    if perplexity is None:
+        perplexity = max(2, min(30, (Xz.shape[0] - 1) // 3))
+
+    perplexity = int(perplexity)
     if perplexity >= Xz.shape[0]:
         perplexity = max(2, Xz.shape[0] - 1)
 
