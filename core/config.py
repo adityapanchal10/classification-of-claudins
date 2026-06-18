@@ -285,7 +285,7 @@ MODEL_REGISTRY = {
         "kwargs": { 
             "n_classes": 3, 
             "dropout": 0.2,
-            "embedding_dim": 768
+            "embedding_dim": 640
         },
     },
     # "Simple CNN": {
