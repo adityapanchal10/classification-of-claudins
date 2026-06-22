@@ -2,6 +2,9 @@ from pathlib import Path
 from typing import Optional
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+import shutil
+import subprocess
+import tempfile
 
 import streamlit as st
 import torch
@@ -12,6 +15,100 @@ try:
     import esm
 except Exception:
     esm = None
+
+def _load_fasta_sequences(fasta_path) -> list[str]:
+    """Parse a FASTA file and return a list of sequences (headers stripped)."""
+    sequences = []
+    current_seq: list[str] = []
+    with open(fasta_path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith(">"):
+                if current_seq:
+                    sequences.append("".join(current_seq))
+                    current_seq = []
+            else:
+                current_seq.append(line)
+    if current_seq:
+        sequences.append("".join(current_seq))
+    return sequences
+
+
+def _mafft_available() -> bool:
+    return shutil.which("mafft") is not None
+
+
+def _align_to_reference_msa(query_sequences: list[str], reference_msa_path) -> tuple[list[str], bool]:
+    """
+    Align query sequences into an existing reference MSA using mafft --add.
+
+    Uses ``mafft --add <queries> --keeplength <reference>`` so the reference
+    alignment columns are preserved and query sequences are inserted without
+    disturbing them.
+
+    Returns:
+        (aligned_query_seqs, success)
+        - aligned_query_seqs: query sequences with gap characters inserted to
+          match the reference alignment width.  Falls back to the original
+          (unaligned) sequences if mafft is unavailable or fails.
+        - success: True when mafft ran successfully, False on fallback.
+    """
+    if not _mafft_available():
+        print("[EMBED] mafft not found — skipping alignment, using raw sequences")
+        return query_sequences, False
+
+    n_queries = len(query_sequences)
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        query_fasta = tmp / "queries.fasta"
+        output_fasta = tmp / "aligned.fasta"
+
+        # Write query sequences to a temporary FASTA
+        with open(query_fasta, "w") as fh:
+            for i, seq in enumerate(query_sequences):
+                fh.write(f">query{i}\n{seq}\n")
+
+        # Run mafft: add queries into the reference MSA, keep reference column width
+        cmd = [
+            "mafft",
+            "--add", str(query_fasta),
+            "--keeplength",
+            "--quiet",
+            str(reference_msa_path),
+        ]
+        try:
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+        except subprocess.TimeoutExpired:
+            print("[EMBED] mafft timed out — falling back to raw sequences")
+            return query_sequences, False
+        except Exception as e:
+            print(f"[EMBED] mafft error: {e} — falling back to raw sequences")
+            return query_sequences, False
+
+        if result.returncode != 0:
+            print(f"[EMBED] mafft non-zero exit ({result.returncode}) — falling back to raw sequences")
+            print(f"[EMBED] mafft stderr: {result.stderr[:500]}")
+            return query_sequences, False
+
+        # mafft --add outputs the full alignment (reference rows + query rows).
+        # Parse all sequences and return only the last n_queries entries.
+        output_fasta.write_text(result.stdout)
+        all_aligned = _load_fasta_sequences(output_fasta)
+
+        if len(all_aligned) < n_queries:
+            print("[EMBED] mafft output fewer sequences than expected — falling back")
+            return query_sequences, False
+
+        aligned_queries = all_aligned[-n_queries:]
+        print(f"[EMBED] mafft alignment done n_queries={n_queries} aligned_len={len(aligned_queries[0]) if aligned_queries else 0}")
+        return aligned_queries, True
+
 
 EMBEDDER_SPECS = {
     "MSA Transformer": {
@@ -117,15 +214,21 @@ class ESMEmbedder:
         return processed
 
     
-    def embed_msa(self, sequences, seq_length=190, max_msa_depth=600):
+    def embed_msa(self, sequences, seq_length=190, max_msa_depth=600, reference_msa_path=None):
         """
         Embed all sequences from ONE MSA file together (true MSA mode).
         Column attention operates across all sequences simultaneously.
 
         Args:
-            sequences    : list of aligned sequences (all from the same MSA file)
-            seq_length   : pad/truncate target length
-            max_msa_depth: max sequences per forward pass (GPU memory limit)
+            sequences         : list of aligned sequences (all from the same MSA file)
+            seq_length        : pad/truncate target length
+            max_msa_depth     : max sequences per forward pass (GPU memory limit)
+            reference_msa_path: optional path to a FASTA reference MSA.  When
+                                provided, query sequences are first aligned into
+                                the reference MSA using ``mafft --add --keeplength``
+                                (if mafft is available), then reference rows are
+                                prepended as MSA context.  Only the query rows are
+                                returned in the output tensor.
 
         Returns:
             Tensor of shape (N, seq_length, embedding_dim)
@@ -137,18 +240,44 @@ class ESMEmbedder:
                 batch_size=len(sequences),
             )
 
+        # Align queries into the reference MSA when requested
+        ref_sequences: list[str] = []
+        if reference_msa_path is not None:
+            aligned_queries, mafft_ok = _align_to_reference_msa(sequences, reference_msa_path)
+            if not mafft_ok:
+                st.warning(
+                    "⚠️ **mafft not found** — sequences could not be aligned to the reference MSA. "
+                    "Embedding will proceed without alignment. Install mafft and restart the app for proper MSA context.",
+                    icon="⚠️",
+                )
+            sequences = aligned_queries
+
+            # Load reference rows to prepend as MSA context.
+            # The reference MSA defines the canonical alignment width — all
+            # sequences (reference and query alike) are forced to that length.
+            ref_sequences = _load_fasta_sequences(reference_msa_path)
+            ref_sequences = self._clean_sequences(ref_sequences)
+            ref_width = len(ref_sequences[0]) if ref_sequences else seq_length
+            ref_sequences = self.pad_or_truncate(ref_sequences, ref_width)
+            # Override seq_length so query sequences are padded/truncated to the
+            # same column count as the reference alignment, regardless of mafft.
+            seq_length = ref_width
+            print(f"[EMBED] Reference MSA path={reference_msa_path} n_ref={len(ref_sequences)} ref_width={ref_width} mafft={mafft_ok}")
+
         sequences = self._clean_sequences(sequences)
         sequences = self.pad_or_truncate(sequences, seq_length) if seq_length is not None else sequences
         N = len(sequences)
-        print(f"[EMBED] Start {self.model_name} Embedding n_seq={N} seq_len={seq_length} msa_mode=True")
+        print(f"[EMBED] Start {self.model_name} Embedding n_seq={N} seq_len={seq_length} msa_mode=True ref_msa={reference_msa_path is not None}")
 
         all_embeddings = []
 
         for start in range(0, N, max_msa_depth):
             chunk = sequences[start: start + max_msa_depth]
 
-            # Wrap all chunk sequences as a single MSA input
-            msa_input = [(f'seq{start + j}', seq) for j, seq in enumerate(chunk)]
+            # Build MSA input: reference rows first (context), then query chunk
+            ref_rows = [(f'ref{i}', seq) for i, seq in enumerate(ref_sequences)]
+            query_rows = [(f'seq{start + j}', seq) for j, seq in enumerate(chunk)]
+            msa_input = ref_rows + query_rows
 
             # batch_converter: tokens shape → (1, depth, seq_len+1), +1 for BOS
             _, _, batch_tokens = self.batch_converter([msa_input])
@@ -161,6 +290,10 @@ class ESMEmbedder:
             token_emb = results["representations"][self.final_layer]
             token_emb = token_emb[:, :, 1:, :]    # Remove BOS → (1, depth, seq_len, embedding_dim)
             token_emb = token_emb.squeeze(0)       # → (depth, seq_len, embedding_dim)
+
+            # Keep only the query rows (skip the prepended reference rows)
+            n_ref = len(ref_sequences)
+            token_emb = token_emb[n_ref:, :, :]
 
             all_embeddings.append(token_emb.cpu())
 

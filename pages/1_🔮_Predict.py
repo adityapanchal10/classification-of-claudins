@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 import torch
 
-from core.config import MODEL_REGISTRY
+from core.config import MODEL_REGISTRY, BASE_DIR
 from core.embeddings import build_baseline_embeddings, get_embedder, infer_structure_with_esmfold
 from core.explainability import (
     attention_dataframe,
@@ -45,7 +45,30 @@ with st.expander("Details", expanded=True):
     st.markdown(f"**Architecture**: {cfg['architecture']}")
     st.markdown(f"**Attention available**: {'Yes' if cfg['uses_attention'] else 'No'}")
 
+REFERENCE_MSA_DIR = BASE_DIR / "reference_msas"
+
+def _resolve_reference_msa(model_name: str, ecs_only: bool):
+    """Return the Path to the appropriate reference MSA file, or None."""
+    is_diverse = "diverse" in model_name.lower()
+    variant = "diverse" if is_diverse else "balanced"
+    prefix = "ref_ecs_only_msa" if ecs_only else "ref_full_seqs_msa"
+    return REFERENCE_MSA_DIR / f"{prefix}_{variant}.fasta"
+
+# MSA mode is only relevant when the MSA Transformer embedder is selected
+_embedder_name = st.session_state.get("global_embedder_name", "MSA Transformer")
+_msa_mode_active = (
+    _embedder_name == "MSA Transformer"
+    and st.session_state.get("global_embed_in_msa_mode", True)
+)
+
 ecs_only_default = default_residue_slice is not None
+use_ref_msa = st.checkbox(
+    "Use Reference MSA for embedding",
+    value=False,
+    key="predict_use_ref_msa",
+    disabled=not _msa_mode_active,
+    help="Prepend reference sequences to the MSA context before embedding. Only available when the MSA Transformer embedder is used in MSA mode.",
+)
 ecs_only = st.checkbox("ECS only (The model will only use the regions specified for the prediction)", value=ecs_only_default, key="predict_ecs_only")
 default_ecs1_start, default_ecs1_end, default_ecs2_start, default_ecs2_end = 28, 81, 139, 164
 if isinstance(default_residue_slice, list) and len(default_residue_slice) >= 2:
@@ -125,9 +148,11 @@ if st.button("Run inference", type="primary"):
         toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
         msa_only = st.session_state.get("global_embed_in_msa_mode", True)
         if msa_only and getattr(embedder, "supports_msa_mode", True):
+            ref_msa_path = _resolve_reference_msa(model_name, ecs_only) if use_ref_msa else None
             embeddings = embedder.embed_msa(
                 df_valid["sequence"].tolist(),
                 seq_length=seq_length,
+                reference_msa_path=ref_msa_path,
             )
         else:
             embeddings = embedder.embed_sequences_per_residue(

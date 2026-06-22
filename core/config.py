@@ -42,6 +42,7 @@ CHECKPOINT_GDRIVE_URLS = {
     "Simple Linear 2 Non-MSA": "https://drive.google.com/file/d/1BB8b8A4a4JIFbMrVHlPwPWNtHgkkguhs/view?usp=drive_link",
     "Simple Linear 2 Non-MSA (ECS only)": "https://drive.google.com/file/d/1MIvQTWUG0Upyb0a_-KG8SEPP-mYTPGqt/view?usp=drive_link",
     "Simple Linear 2 ESM2": "https://drive.google.com/file/d/1fbh1VX2v18gH1cy4K5r4Tes678sV395y/view?usp=drive_link",
+    "Simple Linear 2 Diverse": "https://drive.google.com/file/d/1iaLFkcQFKMH1dBWjYKyBMzDIN1BguM5n/view?usp=sharing",
     # "Simple CNN": "",
     # "Transformer (simple)": "",
     # "Transformer (complex)": "",
@@ -286,6 +287,19 @@ MODEL_REGISTRY = {
             "n_classes": 3, 
             "dropout": 0.2,
             "embedding_dim": 640
+        },
+    },
+    "Simple Linear 2 Diverse": {
+        "class_name": "Simple Linear Classifier",
+        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file.",
+        "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
+        "uses_attention": False,
+        "checkpoint_file": "simple_linear_classifier_single_fasta_diverse.pt",
+        "compatible_embedder": "MSA Transformer",
+        "kwargs": { 
+            "n_classes": 3, 
+            "dropout": 0.2,
+            "embedding_dim": 768
         },
     },
     # "Simple CNN": {
