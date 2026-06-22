@@ -106,7 +106,8 @@ def _align_to_reference_msa(query_sequences: list[str], reference_msa_path) -> t
             return query_sequences, False
 
         aligned_queries = all_aligned[-n_queries:]
-        print(f"[EMBED] mafft alignment done n_queries={n_queries} aligned_len={len(aligned_queries[0]) if aligned_queries else 0}")
+        n_ref_rows = len(all_aligned) - n_queries
+        print(f"[EMBED] mafft alignment done n_queries={n_queries} n_ref={n_ref_rows} aligned_len={len(aligned_queries[0]) if aligned_queries else 0}")
         return aligned_queries, True
 
 
@@ -271,31 +272,26 @@ class ESMEmbedder:
 
         all_embeddings = []
 
-        for start in range(0, N, max_msa_depth):
-            chunk = sequences[start: start + max_msa_depth]
+        # Build a single MSA input: reference rows first (context), then all query sequences
+        ref_rows = [(f'ref{i}', seq) for i, seq in enumerate(ref_sequences)]
+        query_rows = [(f'seq{j}', seq) for j, seq in enumerate(sequences)]
+        msa_input = ref_rows + query_rows
 
-            # Build MSA input: reference rows first (context), then query chunk
-            ref_rows = [(f'ref{i}', seq) for i, seq in enumerate(ref_sequences)]
-            query_rows = [(f'seq{start + j}', seq) for j, seq in enumerate(chunk)]
-            msa_input = ref_rows + query_rows
+        # batch_converter: tokens shape → (1, depth, seq_len+1), +1 for BOS
+        _, _, batch_tokens = self.batch_converter([msa_input])
+        batch_tokens = batch_tokens.to(self.device)
 
-            # batch_converter: tokens shape → (1, depth, seq_len+1), +1 for BOS
-            _, _, batch_tokens = self.batch_converter([msa_input])
-            batch_tokens = batch_tokens.to(self.device)
+        with torch.no_grad():
+            results = self.model(batch_tokens, repr_layers=[self.final_layer], return_contacts=False)
 
-            with torch.no_grad():
-                results = self.model(batch_tokens, repr_layers=[self.final_layer], return_contacts=False)
+        # Extract representations: (1, depth, seq_len+1, embedding_dim)
+        token_emb = results["representations"][self.final_layer]
+        token_emb = token_emb[:, :, 1:, :]    # Remove BOS → (1, depth, seq_len, embedding_dim)
+        token_emb = token_emb.squeeze(0)       # → (depth, seq_len, embedding_dim)
 
-            # Extract representations: (1, depth, seq_len+1, embedding_dim)
-            token_emb = results["representations"][self.final_layer]
-            token_emb = token_emb[:, :, 1:, :]    # Remove BOS → (1, depth, seq_len, embedding_dim)
-            token_emb = token_emb.squeeze(0)       # → (depth, seq_len, embedding_dim)
-
-            # Keep only the query rows (skip the prepended reference rows)
-            n_ref = len(ref_sequences)
-            token_emb = token_emb[n_ref:, :, :]
-
-            all_embeddings.append(token_emb.cpu())
+        # Keep only the query rows (skip the prepended reference rows)
+        n_ref = len(ref_sequences)
+        all_embeddings.append(token_emb[n_ref:, :, :].cpu())
 
         output_embeddings = torch.cat(all_embeddings, dim=0)
         assert len(output_embeddings.shape) == 3, f"Unexpected shape: {output_embeddings.shape}"

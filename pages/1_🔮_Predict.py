@@ -67,7 +67,7 @@ use_ref_msa = st.checkbox(
     value=False,
     key="predict_use_ref_msa",
     disabled=not _msa_mode_active,
-    help="Prepend reference sequences to the MSA context before embedding. Only available when the MSA Transformer embedder is used in MSA mode.",
+    help="Prepend reference sequences to the input before embedding. Only available when the MSA Transformer embedder is used in MSA mode.",
 )
 ecs_only = st.checkbox("ECS only (The model will only use the regions specified for the prediction)", value=ecs_only_default, key="predict_ecs_only")
 default_ecs1_start, default_ecs1_end, default_ecs2_start, default_ecs2_end = 28, 81, 139, 164
@@ -142,7 +142,7 @@ if st.button("Run inference", type="primary"):
         st.error("No valid amino acid sequences were found.")
         st.stop()
 
-    with st.spinner("Generating embeddings..."):
+    with st.spinner(f"Aligning input sequences to in-built reference MSA and generating embeddings..." if use_ref_msa and _msa_mode_active else "Generating embeddings..."):
         embedder = get_embedder()
         embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
         toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
