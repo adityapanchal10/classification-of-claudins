@@ -47,10 +47,8 @@ with st.expander("Details", expanded=True):
 
 REFERENCE_MSA_DIR = BASE_DIR / "reference_msas"
 
-def _resolve_reference_msa(model_name: str, ecs_only: bool):
-    """Return the Path to the appropriate reference MSA file, or None."""
-    is_diverse = "diverse" in model_name.lower()
-    variant = "diverse" if is_diverse else "balanced"
+def _resolve_reference_msa(ecs_only: bool, variant: str) -> Path:
+    """Return the Path to the appropriate reference MSA file."""
     prefix = "ref_ecs_only_msa" if ecs_only else "ref_full_seqs_msa"
     return REFERENCE_MSA_DIR / f"{prefix}_{variant}.fasta"
 
@@ -67,8 +65,20 @@ use_ref_msa = st.checkbox(
     value=False,
     key="predict_use_ref_msa",
     disabled=not _msa_mode_active,
-    help="Prepend reference sequences to the input before embedding. Only available when the MSA Transformer embedder is used in MSA mode.",
+    help="Align and embed input sequences against a reference MSA. Only available when the MSA Transformer embedder is used in MSA mode.",
 )
+if use_ref_msa and _msa_mode_active:
+    _default_variant = "diverse" if "diverse" in model_name.lower() else "balanced"
+    ref_msa_variant = st.radio(
+        "Reference MSA variant",
+        options=["balanced", "diverse"],
+        index=0 if _default_variant == "balanced" else 1,
+        horizontal=True,
+        key="predict_ref_msa_variant",
+        help="**Balanced**: equal sequences per claudin family. **Diverse**: training-like variety.",
+    )
+else:
+    ref_msa_variant = "balanced"
 ecs_only = st.checkbox("ECS only (The model will only use the regions specified for the prediction)", value=ecs_only_default, key="predict_ecs_only")
 default_ecs1_start, default_ecs1_end, default_ecs2_start, default_ecs2_end = 28, 81, 139, 164
 if isinstance(default_residue_slice, list) and len(default_residue_slice) >= 2:
@@ -148,7 +158,7 @@ if st.button("Run inference", type="primary"):
         toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
         msa_only = st.session_state.get("global_embed_in_msa_mode", True)
         if msa_only and getattr(embedder, "supports_msa_mode", True):
-            ref_msa_path = _resolve_reference_msa(model_name, ecs_only) if use_ref_msa else None
+            ref_msa_path = _resolve_reference_msa(ecs_only, ref_msa_variant) if use_ref_msa else None
             embeddings = embedder.embed_msa(
                 df_valid["sequence"].tolist(),
                 seq_length=seq_length,
