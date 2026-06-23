@@ -155,7 +155,7 @@ if run_exploration:
                 f"{df_valid.iloc[i]['description']} ({df_valid.iloc[i]['length']} aa)"
                 for i in range(sequence_count)
             ]
-            default_selection = sequence_labels.copy()
+            default_selection = sequence_labels[:5] if len(sequence_labels) > 5 else sequence_labels.copy()
             selected_labels = default_selection
 
             # Add frosted sticky styling for visualization controls.
