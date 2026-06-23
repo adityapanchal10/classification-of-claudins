@@ -1,7 +1,7 @@
 import streamlit as st
 import torch
 
-from core.config import CLASS_MAP, MODEL_REGISTRY
+from core.config import CLASS_MAP, MODEL_REGISTRY, BASE_DIR
 from core.embeddings import (
     DEFAULT_EMBEDDER_NAME,
     available_embedder_names,
@@ -26,6 +26,12 @@ from core.predict import (
 )
 from core.ui import DEFAULT_SEQ_LENGTH, DEFAULT_SEQ_LENGTH_ECS_ONLY, cache_log, memory_log, toast_once
 from core.visuals import plot_residue_boxplot
+
+REFERENCE_MSA_DIR = BASE_DIR / "reference_msas"
+
+def _resolve_reference_msa(ecs_only: bool, variant: str):
+    prefix = "ref_ecs_only_msa" if ecs_only else "ref_full_seqs_msa"
+    return REFERENCE_MSA_DIR / f"{prefix}_{variant}.fasta"
 
 st.set_page_config(page_title="Compare Models", layout="wide", page_icon="🧬")
 st.logo("🧬")
@@ -199,6 +205,25 @@ with col_model_a:
             disabled=not left_ecs_only,
             key="cmp_a_ecs2_end",
         )
+    left_msa_active = left_msa_only and left_msa_supported
+    left_use_ref_msa = st.checkbox(
+        "Use Reference MSA for embedding",
+        value=False,
+        key="cmp_a_use_ref_msa",
+        disabled=not left_msa_active,
+        help="Align and embed against a reference MSA. Only available in MSA mode with the MSA Transformer.",
+    )
+    if left_use_ref_msa and left_msa_active:
+        left_ref_msa_variant = st.radio(
+            "Reference MSA variant",
+            options=["balanced", "diverse"],
+            index=0,
+            horizontal=True,
+            key="cmp_a_ref_msa_variant",
+            help="**Balanced**: equal sequences per family. **Diverse**: maximises cross-family variety.",
+        )
+    else:
+        left_ref_msa_variant = "balanced"
 with col_model_b:
     if st.session_state.get("cmp_b_embedder") not in embedder_options:
         st.session_state["cmp_b_embedder"] = default_embedder_name
@@ -277,6 +302,25 @@ with col_model_b:
             disabled=not right_ecs_only,
             key="cmp_b_ecs2_end",
         )
+    right_msa_active = right_msa_only and right_msa_supported
+    right_use_ref_msa = st.checkbox(
+        "Use Reference MSA for embedding",
+        value=False,
+        key="cmp_b_use_ref_msa",
+        disabled=not right_msa_active,
+        help="Align and embed against a reference MSA. Only available in MSA mode with the MSA Transformer.",
+    )
+    if right_use_ref_msa and right_msa_active:
+        right_ref_msa_variant = st.radio(
+            "Reference MSA variant",
+            options=["balanced", "diverse"],
+            index=0,
+            horizontal=True,
+            key="cmp_b_ref_msa_variant",
+            help="**Balanced**: equal sequences per family. **Diverse**: maximises cross-family variety.",
+        )
+    else:
+        right_ref_msa_variant = "balanced"
 
 if st.button("Run comparison", type="primary"):
     print(f"[PAGE Compare] Run comparison A={left_model} B={right_model} idx={selected_idx}")
@@ -284,14 +328,15 @@ if st.button("Run comparison", type="primary"):
     embedder_ref = {}
     embeddings_cache = {}
 
-    def _get_embeddings_for_model(embedder_name: str, msa_only: bool, ecs_only: bool = False):
+    def _get_embeddings_for_model(embedder_name: str, msa_only: bool, ecs_only: bool = False, reference_msa_path=None):
         effective_msa_only = bool(msa_only and embedder_supports_msa_mode(embedder_name))
-        cache_key = (embedder_name, effective_msa_only, ecs_only)
+        cache_key = (embedder_name, effective_msa_only, ecs_only, str(reference_msa_path))
         if cache_key in embeddings_cache:
             return embeddings_cache[cache_key]
 
         if (
-            embeddings_all is not None
+            reference_msa_path is None
+            and embeddings_all is not None
             and pre_stored_embeddings_embedder == embedder_name
             and pre_stored_embeddings_msa_only == effective_msa_only
         ):
@@ -312,6 +357,7 @@ if st.button("Run comparison", type="primary"):
             embeddings_cache[cache_key] = embedder.embed_msa(
                 df_valid["sequence"].tolist(),
                 seq_length=effective_seq_length,
+                reference_msa_path=reference_msa_path,
             )
         else:
             embeddings_cache[cache_key] = embedder.embed_sequences_per_residue(
@@ -321,8 +367,8 @@ if st.button("Run comparison", type="primary"):
             )
         return embeddings_cache[cache_key]
 
-    def _get_sample_embedding(embedder_name: str, msa_only: bool, ecs_only: bool = False):
-        embeddings_for_mode = _get_embeddings_for_model(embedder_name, msa_only, ecs_only)
+    def _get_sample_embedding(embedder_name: str, msa_only: bool, ecs_only: bool = False, reference_msa_path=None):
+        embeddings_for_mode = _get_embeddings_for_model(embedder_name, msa_only, ecs_only, reference_msa_path)
         effective_msa_only = bool(msa_only and embedder_supports_msa_mode(embedder_name))
         if effective_msa_only:
             return embeddings_for_mode[selected_idx].unsqueeze(0)
@@ -336,6 +382,8 @@ if st.button("Run comparison", type="primary"):
         if slot == 0:
             msa_only = msa_only_setting
             slot_ecs_only = left_ecs_only
+            use_ref_msa = left_use_ref_msa and left_msa_active
+            ref_msa_path = _resolve_reference_msa(slot_ecs_only, left_ref_msa_variant) if use_ref_msa else None
             if left_ecs_only:
                 ecs1_start = int(max(1, left_ecs1_start))
                 ecs1_end = int(max(ecs1_start, left_ecs1_end))
@@ -347,6 +395,8 @@ if st.button("Run comparison", type="primary"):
         else:
             msa_only = msa_only_setting
             slot_ecs_only = right_ecs_only
+            use_ref_msa = right_use_ref_msa and right_msa_active
+            ref_msa_path = _resolve_reference_msa(slot_ecs_only, right_ref_msa_variant) if use_ref_msa else None
             if right_ecs_only:
                 ecs1_start = int(max(1, right_ecs1_start))
                 ecs1_end = int(max(ecs1_start, right_ecs1_end))
@@ -355,7 +405,7 @@ if st.button("Run comparison", type="primary"):
                 residue_slice = [(ecs1_start - 1, ecs1_end), (ecs2_start - 1, ecs2_end)]
             else:
                 residue_slice = None
-        sample_embedding = _get_sample_embedding(embedder_name, msa_only, slot_ecs_only).to(torch.float32)
+        sample_embedding = _get_sample_embedding(embedder_name, msa_only, slot_ecs_only, ref_msa_path).to(torch.float32)
         sample_embedding = slice_embeddings(sample_embedding, residue_slice)
         if int(sample_embedding.shape[-1]) != expected_dim:
             with col:
