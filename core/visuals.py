@@ -58,7 +58,6 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
     is_dark = theme_type == "dark"
     text_color = "#dbe4f2" if is_dark else "#1f2937"
 
-
     # Fixed-size cells make letters and indices easy to read.
     cell_px = 13
     margin = dict(l=0, r=0, t=30, b=130)
@@ -67,6 +66,7 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
     fig_w = inner_w + margin["l"] + margin["r"]
     fig_h = inner_h + margin["t"] + margin["b"]
 
+    # Use sequential indices for rendering but show real positions in hover/labels
     x_idx = list(range(length))
 
     fig = go.Figure(
@@ -91,16 +91,21 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
     )
 
     annotations = []
-    for i in x_idx:
+    for i, (pos, res, val) in enumerate(zip(positions, residues, values)):
+        # Dim zero-score residues (non-ECS positions when ECS-only mode is active)
+        is_zero = val == 0.0
+        char_alpha = "88" if is_zero else "ff"  # hex alpha suffix
+        char_color = text_color + char_alpha if not text_color.startswith("rgba") else text_color
+
         annotations.append(
             dict(
                 x=i,
                 y=0.10,
-                text=residues[i],
+                text=res,
                 showarrow=False,
                 xanchor="center",
                 yanchor="middle",
-                font=dict(size=11, color=text_color),
+                font=dict(size=11, color=char_color),
             )
         )
         annotations.append(
@@ -109,11 +114,11 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
                 yref="paper",
                 x=i,
                 y=-0.55,
-                text=str(positions[i]),
+                text=str(pos),
                 showarrow=False,
                 xanchor="center",
                 yanchor="middle",
-                font=dict(size=6.5, color=text_color),
+                font=dict(size=6.5, color=char_color),
                 textangle=-90,
             )
         )
