@@ -309,7 +309,7 @@ MODEL_REGISTRY = {
     },
     "Simple Linear 2 Diverse": {
         "class_name": "Simple Linear Classifier",
-        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file.",
+        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on chunked train/val split from the single FASTA file. Chunks/Batches contained at-least one sequence from each claudin family with the remaining sequences filled in a round-robin manner, prioritisingfamilies with the most leftover sequences.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
         "uses_attention": False,
         "checkpoint_file": "simple_linear_classifier_single_fasta_diverse.pt",
@@ -322,7 +322,7 @@ MODEL_REGISTRY = {
     },
     "Simple Linear 2 Diverse (ECS only)": {
         "class_name": "Simple Linear Classifier",
-        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file modified to contain only the ECS1/2 segments, embeddings generated without MSA context.",
+        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on chunked train/val split from the single FASTA file modified to contain only the ECS1/2 segments. Chunks/Batches contained at-least one sequence from each claudin family with the remaining sequences filled in a round-robin manner, prioritisingfamilies with the most leftover sequences.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
         "uses_attention": False,
         "checkpoint_file": "simple_linear_classifier_single_fasta_diverse_ecs_only.pt",
@@ -336,7 +336,7 @@ MODEL_REGISTRY = {
     },
     "Simple Linear 2 Balanced": {
         "class_name": "Simple Linear Classifier",
-        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file.",
+        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on chunked train/val split from the single FASTA file. Chunks/Batches contained equal number of sequences from each claudin family.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
         "uses_attention": False,
         "checkpoint_file": "simple_linear_classifier_single_fasta_balanced.pt",
@@ -349,7 +349,7 @@ MODEL_REGISTRY = {
     },
     "Simple Linear 2 Balanced (ECS only)": {
         "class_name": "Simple Linear Classifier",
-        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file modified to contain only the ECS1/2 segments, embeddings generated without MSA context.",
+        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on chunked train/val split from the single FASTA file modified to contain only the ECS1/2 segments. Chunks/Batches contained equal number of sequences from each claudin family.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
         "uses_attention": False,
         "checkpoint_file": "simple_linear_classifier_single_fasta_balanced_ecs_only.pt",
