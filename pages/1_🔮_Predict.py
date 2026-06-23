@@ -23,7 +23,7 @@ from core.predict import (
     slice_sequence,
     expand_scores_to_full,
 )
-from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, memory_log, toast_once
+from core.ui import DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, memory_log, toast_once
 from core.visuals import plot_attention, plot_importance, plot_top_attributes, show_structure_viewer
 
 st.set_page_config(page_title="Predict", layout="wide", page_icon="🧬")
@@ -34,7 +34,6 @@ global_sidebar()
 st.title("Predict")
 model_name = st.session_state.get("global_model_name", "Transformer + MLP")
 seq_length = DEFAULT_SEQ_LENGTH
-batch_size = DEFAULT_BATCH_SIZE
 ig_steps = st.session_state.get("global_ig_steps", 50)
 
 cfg = MODEL_REGISTRY[model_name]
@@ -168,7 +167,6 @@ if st.button("Run inference", type="primary"):
             embeddings = embedder.embed_sequences_per_residue(
                 df_valid["sequence"].tolist(),
                 seq_length=seq_length,
-                batch_size=batch_size,
             )
 
     bundle = load_classifier_bundle(model_name)

@@ -14,7 +14,6 @@ from core.embeddings import DEFAULT_EMBEDDER_NAME, available_embedder_names, emb
 
 
 DEFAULT_SEQ_LENGTH = 190
-DEFAULT_BATCH_SIZE = 64
 DEFAULT_IG_STEPS = 50
 DEFAULT_ENABLE_MEMORY_LOGS = False
 DEFAULT_EMBED_IN_MSA_MODE = True
@@ -272,7 +271,7 @@ def global_sidebar():
         key="global_enable_memory_logs",
         help="Print minimal memory snapshots at major action completion points.",
     )
-    return model_name, DEFAULT_SEQ_LENGTH, DEFAULT_BATCH_SIZE, ig_steps
+    return model_name, DEFAULT_SEQ_LENGTH, ig_steps
 
 
 def toast_once(session_key, item_key, message):

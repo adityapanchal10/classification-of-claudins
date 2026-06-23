@@ -24,7 +24,7 @@ from core.predict import (
     slice_sequence,
     expand_scores_to_full,
 )
-from core.ui import DEFAULT_BATCH_SIZE, DEFAULT_SEQ_LENGTH, cache_log, memory_log, toast_once
+from core.ui import DEFAULT_SEQ_LENGTH, cache_log, memory_log, toast_once
 from core.visuals import plot_residue_boxplot
 
 st.set_page_config(page_title="Compare Models", layout="wide", page_icon="🧬")
@@ -33,7 +33,6 @@ st.logo("🧬")
 
 st.title("Compare Models")
 seq_length = DEFAULT_SEQ_LENGTH
-batch_size = DEFAULT_BATCH_SIZE
 ig_steps = st.session_state.get("global_ig_steps", 50)
 global_msa_default = st.session_state.get("global_embed_in_msa_mode", True)
 default_embedder_name = st.session_state.get("global_embedder_name", DEFAULT_EMBEDDER_NAME)
@@ -316,7 +315,7 @@ if st.button("Run comparison", type="primary"):
             embeddings_cache[cache_key] = embedder.embed_sequences_per_residue(
                 [selected_row["sequence"]],
                 seq_length=seq_length,
-                batch_size=batch_size,
+                batch_size=1,
             )
         return embeddings_cache[cache_key]
 

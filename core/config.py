@@ -43,7 +43,9 @@ CHECKPOINT_GDRIVE_URLS = {
     "Simple Linear 2 Non-MSA (ECS only)": "https://drive.google.com/file/d/1MIvQTWUG0Upyb0a_-KG8SEPP-mYTPGqt/view?usp=drive_link",
     "Simple Linear 2 ESM2": "https://drive.google.com/file/d/1fbh1VX2v18gH1cy4K5r4Tes678sV395y/view?usp=drive_link",
     "Simple Linear 2 Diverse": "https://drive.google.com/file/d/1iaLFkcQFKMH1dBWjYKyBMzDIN1BguM5n/view?usp=sharing",
-    "Simple Linear 2 Diverse (ECS only)": "https://drive.google.com/file/d/1BBzItiIZK-GJ_sz5kde1Rf3D3isHr7f0/view?usp=sharing"
+    "Simple Linear 2 Diverse (ECS only)": "https://drive.google.com/file/d/1BBzItiIZK-GJ_sz5kde1Rf3D3isHr7f0/view?usp=sharing",
+    "Simple Linear 2 Balanced": "https://drive.google.com/file/d/1x-UFJ1j0_Hb9Mi_gynmCsRg3esaITT2i/view?usp=drive_link",
+    "Simple Linear 2 Balanced (ECS only)": "https://drive.google.com/file/d/1mQ_xk9s4NtP8lVeY3pixhRs1Cl8uPun0/view?usp=drive_link",
     # "Simple CNN": "",
     # "Transformer (simple)": "",
     # "Transformer (complex)": "",
@@ -309,6 +311,33 @@ MODEL_REGISTRY = {
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
         "uses_attention": False,
         "checkpoint_file": "simple_linear_classifier_single_fasta_diverse_ecs_only.pt",
+        "compatible_embedder": "MSA Transformer",
+        "residue_slice": [(27, 81), (138, 164)],
+        "kwargs": { 
+            "n_classes": 3, 
+            "dropout": 0.2,
+            "embedding_dim": 768
+        },
+    },
+    "Simple Linear 2 Balanced": {
+        "class_name": "Simple Linear Classifier",
+        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file.",
+        "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
+        "uses_attention": False,
+        "checkpoint_file": "simple_linear_classifier_single_fasta_balanced.pt",
+        "compatible_embedder": "MSA Transformer",
+        "kwargs": { 
+            "n_classes": 3, 
+            "dropout": 0.2,
+            "embedding_dim": 768
+        },
+    },
+    "Simple Linear 2 Balanced (ECS only)": {
+        "class_name": "Simple Linear Classifier",
+        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file modified to contain only the ECS1/2 segments, embeddings generated without MSA context.",
+        "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
+        "uses_attention": False,
+        "checkpoint_file": "simple_linear_classifier_single_fasta_balanced_ecs_only.pt",
         "compatible_embedder": "MSA Transformer",
         "residue_slice": [(27, 81), (138, 164)],
         "kwargs": { 
