@@ -23,7 +23,7 @@ from core.predict import (
     slice_sequence,
     expand_scores_to_full,
 )
-from core.ui import DEFAULT_SEQ_LENGTH, cache_log, global_sidebar, memory_log, toast_once
+from core.ui import DEFAULT_SEQ_LENGTH, DEFAULT_SEQ_LENGTH_ECS_ONLY, cache_log, global_sidebar, memory_log, toast_once
 from core.visuals import plot_attention, plot_importance, plot_top_attributes, show_structure_viewer
 
 st.set_page_config(page_title="Predict", layout="wide", page_icon="🧬")
@@ -34,6 +34,7 @@ global_sidebar()
 st.title("Predict")
 model_name = st.session_state.get("global_model_name", "Transformer + MLP")
 seq_length = DEFAULT_SEQ_LENGTH
+seq_length_ecs_only = DEFAULT_SEQ_LENGTH_ECS_ONLY
 ig_steps = st.session_state.get("global_ig_steps", 50)
 
 cfg = MODEL_REGISTRY[model_name]
@@ -156,17 +157,18 @@ if st.button("Run inference", type="primary"):
         embedder_name = getattr(embedder, "model_name", "esm_msa1b_t12_100M_UR50S")
         toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
         msa_only = st.session_state.get("global_embed_in_msa_mode", True)
+        effective_seq_length = seq_length_ecs_only if ecs_only else seq_length
         if msa_only and getattr(embedder, "supports_msa_mode", True):
             ref_msa_path = _resolve_reference_msa(ecs_only, ref_msa_variant) if use_ref_msa else None
             embeddings = embedder.embed_msa(
                 df_valid["sequence"].tolist(),
-                seq_length=seq_length,
+                seq_length=effective_seq_length,
                 reference_msa_path=ref_msa_path,
             )
         else:
             embeddings = embedder.embed_sequences_per_residue(
                 df_valid["sequence"].tolist(),
-                seq_length=seq_length,
+                seq_length=effective_seq_length,
             )
 
     bundle = load_classifier_bundle(model_name)

@@ -24,7 +24,7 @@ from core.predict import (
     slice_sequence,
     expand_scores_to_full,
 )
-from core.ui import DEFAULT_SEQ_LENGTH, cache_log, memory_log, toast_once
+from core.ui import DEFAULT_SEQ_LENGTH, DEFAULT_SEQ_LENGTH_ECS_ONLY, cache_log, memory_log, toast_once
 from core.visuals import plot_residue_boxplot
 
 st.set_page_config(page_title="Compare Models", layout="wide", page_icon="🧬")
@@ -33,6 +33,7 @@ st.logo("🧬")
 
 st.title("Compare Models")
 seq_length = DEFAULT_SEQ_LENGTH
+seq_length_ecs_only = DEFAULT_SEQ_LENGTH_ECS_ONLY
 ig_steps = st.session_state.get("global_ig_steps", 50)
 global_msa_default = st.session_state.get("global_embed_in_msa_mode", True)
 default_embedder_name = st.session_state.get("global_embedder_name", DEFAULT_EMBEDDER_NAME)
@@ -283,9 +284,9 @@ if st.button("Run comparison", type="primary"):
     embedder_ref = {}
     embeddings_cache = {}
 
-    def _get_embeddings_for_model(embedder_name: str, msa_only: bool):
+    def _get_embeddings_for_model(embedder_name: str, msa_only: bool, ecs_only: bool = False):
         effective_msa_only = bool(msa_only and embedder_supports_msa_mode(embedder_name))
-        cache_key = (embedder_name, effective_msa_only)
+        cache_key = (embedder_name, effective_msa_only, ecs_only)
         if cache_key in embeddings_cache:
             return embeddings_cache[cache_key]
 
@@ -305,22 +306,23 @@ if st.button("Run comparison", type="primary"):
             embedder_name_resolved = getattr(embedder_ref[embedder_name], "model_name", embedder_name)
             toast_once("_embedder_ready_toast_shown", embedder_name_resolved, f"⚗️ Embedder ready: {embedder_name_resolved}")
 
+        effective_seq_length = seq_length_ecs_only if ecs_only else seq_length
         embedder = embedder_ref[embedder_name]
         if effective_msa_only:
             embeddings_cache[cache_key] = embedder.embed_msa(
                 df_valid["sequence"].tolist(),
-                seq_length=seq_length,
+                seq_length=effective_seq_length,
             )
         else:
             embeddings_cache[cache_key] = embedder.embed_sequences_per_residue(
                 [selected_row["sequence"]],
-                seq_length=seq_length,
+                seq_length=effective_seq_length,
                 batch_size=1,
             )
         return embeddings_cache[cache_key]
 
-    def _get_sample_embedding(embedder_name: str, msa_only: bool):
-        embeddings_for_mode = _get_embeddings_for_model(embedder_name, msa_only)
+    def _get_sample_embedding(embedder_name: str, msa_only: bool, ecs_only: bool = False):
+        embeddings_for_mode = _get_embeddings_for_model(embedder_name, msa_only, ecs_only)
         effective_msa_only = bool(msa_only and embedder_supports_msa_mode(embedder_name))
         if effective_msa_only:
             return embeddings_for_mode[selected_idx].unsqueeze(0)
@@ -333,6 +335,7 @@ if st.button("Run comparison", type="primary"):
         expected_dim = int(MODEL_REGISTRY[model_name]["kwargs"]["embedding_dim"])
         if slot == 0:
             msa_only = msa_only_setting
+            slot_ecs_only = left_ecs_only
             if left_ecs_only:
                 ecs1_start = int(max(1, left_ecs1_start))
                 ecs1_end = int(max(ecs1_start, left_ecs1_end))
@@ -343,6 +346,7 @@ if st.button("Run comparison", type="primary"):
                 residue_slice = None
         else:
             msa_only = msa_only_setting
+            slot_ecs_only = right_ecs_only
             if right_ecs_only:
                 ecs1_start = int(max(1, right_ecs1_start))
                 ecs1_end = int(max(ecs1_start, right_ecs1_end))
@@ -351,7 +355,7 @@ if st.button("Run comparison", type="primary"):
                 residue_slice = [(ecs1_start - 1, ecs1_end), (ecs2_start - 1, ecs2_end)]
             else:
                 residue_slice = None
-        sample_embedding = _get_sample_embedding(embedder_name, msa_only).to(torch.float32)
+        sample_embedding = _get_sample_embedding(embedder_name, msa_only, slot_ecs_only).to(torch.float32)
         sample_embedding = slice_embeddings(sample_embedding, residue_slice)
         if int(sample_embedding.shape[-1]) != expected_dim:
             with col:
