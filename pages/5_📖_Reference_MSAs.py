@@ -18,25 +18,6 @@ st.markdown(
     "Sequences are drawn from the training set and cover all three functional classes."
 )
 
-with st.expander("ℹ️ Balanced vs Diverse — what's the difference?", expanded=False):
-    st.markdown("""
-**Balanced MSA**
-Every chunk contains an exactly equal number of sequences from each claudin family
-(`chunk_size ÷ n_families` per family). This gives the MSA Transformer a uniform,
-unbiased view of all families in every forward pass.
-
-**Diverse MSA**
-Every chunk is seeded with at least one sequence from every family (guaranteeing full
-family coverage), and then the remaining slots are filled round-robin, prioritising
-families with the most leftover sequences. This means larger families (in training)
-contribute more context rows while still ensuring no family is ever absent. 
-
-**Which to use?**
-- Use **Balanced** when you want equal attention from all families.
-- Use **Diverse** when you want the embedding to reflect a more training-like sequence distribution 
-""")
-
-
 REFERENCE_MSA_DIR = BASE_DIR / "reference_msas"
 
 REFERENCE_MSAS = {
@@ -104,6 +85,10 @@ for msa_label, msa_path in REFERENCE_MSAS.items():
             count = int((df["functional_class"] == CLASS_MAP[{"barrier": 0, "cation": 1, "anion": 2}[key]]).sum())
             col.metric(label, count)
 
+        st.markdown("#### FASTA contents")
+        fasta_text = msa_path.read_text()
+        st.container(height=300).code(fasta_text, language=None)
+
         st.markdown("#### Per-family breakdown")
 
         # Pivot: rows = cldn_family, cols = functional class counts
@@ -120,4 +105,22 @@ for msa_label, msa_path in REFERENCE_MSAS.items():
         family_counts["Total"] = family_counts[class_cols].sum(axis=1)
         family_counts = family_counts.sort_values("Claudin family").reset_index(drop=True)
 
-        st.dataframe(family_counts, use_container_width=True, hide_index=True)
+        st.dataframe(family_counts, width='stretch', hide_index=True)
+
+with st.expander("ℹ️ Balanced vs Diverse — what's the difference?", expanded=False):
+    st.markdown("""
+**Balanced MSA:**
+Every chunk contains an exactly equal number of sequences from each claudin family
+(`chunk_size ÷ n_families` per family). This gives the MSA Transformer a uniform,
+unbiased view of all families in every forward pass.
+
+**Diverse MSA:**
+Every chunk is seeded with at least one sequence from every family (guaranteeing full
+family coverage), and then the remaining slots are filled round-robin, prioritising
+families with the most leftover sequences. This means larger families (in training)
+contribute more context rows while still ensuring no family is ever absent. 
+
+**Which to use?**
+- Use **Balanced** when you want equal attention from all families.
+- Use **Diverse** when you want the embedding to reflect a more training-like sequence distribution 
+""")
