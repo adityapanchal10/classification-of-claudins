@@ -290,7 +290,12 @@ if (
             n_steps=ig_steps,
             internal_batch_size=max(4, min(8, ig_steps)),
         )
-        full_seq = row["sequence"][: embeddings.shape[1]]
+        # full_seq spans the entire original sequence up to the embedding width.
+        # For ECS-only models, sample_embedding.shape[1] is the ECS width after
+        # slice_embeddings — use the pre-slice embedding width (embeddings.shape[1])
+        # so we display the full sequence with non-ECS residues grayed out.
+        embed_seq_len = int(embeddings.shape[1])
+        full_seq = row["sequence"][:embed_seq_len]
         trunc_seq = slice_sequence(row["sequence"], residue_slice)
         trunc_seq = trunc_seq[: sample_embedding.shape[1]]
         residue_scores = residue_attrs.squeeze(0).numpy()[: len(trunc_seq)]
@@ -316,6 +321,7 @@ if (
                 saliency_df = attention_dataframe(full_seq, full_saliency)
             else:
                 saliency_df = attention_dataframe(trunc_seq, saliency_scores)
+        # full_seq is already correct for both ECS and non-ECS cases above
         inspected_result = {
             "explain_idx": explain_idx,
             "seq_id": row["description"],
