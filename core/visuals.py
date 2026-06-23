@@ -94,8 +94,13 @@ def _plot_sequence_colormap(df, title: str, value_col: str, symmetric: bool, leg
     for i, (pos, res, val) in enumerate(zip(positions, residues, values)):
         # Dim zero-score residues (non-ECS positions when ECS-only mode is active)
         is_zero = val == 0.0
-        char_alpha = "88" if is_zero else "ff"  # hex alpha suffix
-        char_color = text_color + char_alpha if not text_color.startswith("rgba") else text_color
+        if is_zero:
+            # Parse the hex color and re-emit as rgba with reduced alpha
+            hex_clean = text_color.lstrip("#")
+            r, g, b = int(hex_clean[0:2], 16), int(hex_clean[2:4], 16), int(hex_clean[4:6], 16)
+            char_color = f"rgba({r},{g},{b},0.35)"
+        else:
+            char_color = text_color
 
         annotations.append(
             dict(
