@@ -353,15 +353,22 @@ if st.button("Run comparison", type="primary"):
 
         effective_seq_length = seq_length_ecs_only if ecs_only else seq_length
         embedder = embedder_ref[embedder_name]
+        # Snip sequences to ECS regions before embedding when ecs_only is active
+        if ecs_only and residue_slice is not None:
+            sequences_to_embed = [slice_sequence(seq, residue_slice) for seq in df_valid["sequence"].tolist()]
+            single_sequence = slice_sequence(selected_row["sequence"], residue_slice)
+        else:
+            sequences_to_embed = df_valid["sequence"].tolist()
+            single_sequence = selected_row["sequence"]
         if effective_msa_only:
             embeddings_cache[cache_key] = embedder.embed_msa(
-                df_valid["sequence"].tolist(),
+                sequences_to_embed,
                 seq_length=effective_seq_length,
                 reference_msa_path=reference_msa_path,
             )
         else:
             embeddings_cache[cache_key] = embedder.embed_sequences_per_residue(
-                [selected_row["sequence"]],
+                [single_sequence],
                 seq_length=effective_seq_length,
                 batch_size=1,
             )
@@ -406,7 +413,9 @@ if st.button("Run comparison", type="primary"):
             else:
                 residue_slice = None
         sample_embedding = _get_sample_embedding(embedder_name, msa_only, slot_ecs_only, ref_msa_path).to(torch.float32)
-        sample_embedding = slice_embeddings(sample_embedding, residue_slice)
+        # Embeddings are already ECS-only when slot_ecs_only is active; no post-hoc slice needed
+        if not slot_ecs_only:
+            sample_embedding = slice_embeddings(sample_embedding, residue_slice)
         if int(sample_embedding.shape[-1]) != expected_dim:
             with col:
                 st.error(
@@ -424,11 +433,16 @@ if st.button("Run comparison", type="primary"):
             n_steps=ig_steps,
             internal_batch_size=max(4, min(8, ig_steps)),
         )
-        full_seq = selected_row["sequence"][: sample_embedding.shape[1]]
-        trunc_seq = slice_sequence(selected_row["sequence"], residue_slice)
-        trunc_seq = trunc_seq[: sample_embedding.shape[1]]
+        full_seq = selected_row["sequence"]
+        if slot_ecs_only and residue_slice is not None:
+            # Embedding covers only ECS residues; trunc_seq is those residues
+            trunc_seq = slice_sequence(selected_row["sequence"], residue_slice)
+            trunc_seq = trunc_seq[: sample_embedding.shape[1]]
+        else:
+            full_seq = selected_row["sequence"][: sample_embedding.shape[1]]
+            trunc_seq = full_seq
         residue_scores = residue_attrs.squeeze(0).numpy()[: len(trunc_seq)]
-        if residue_slice is not None:
+        if slot_ecs_only and residue_slice is not None:
             full_scores = expand_scores_to_full(residue_scores, residue_slice, len(full_seq))
             ig_df = residue_importance_dataframe(full_seq, full_scores)
         else:
@@ -440,7 +454,7 @@ if st.button("Run comparison", type="primary"):
             plot_residue_boxplot(ig_df, "score", f"Integrated Gradients — {model_name}", "IG score", key=f"cmp_ig_{slot}")
             if bundle.uses_attention and attn is not None:
                 attn_vec = attn[0].numpy()[: len(trunc_seq)]
-                if residue_slice is not None:
+                if slot_ecs_only and residue_slice is not None:
                     full_attn = expand_scores_to_full(attn_vec, residue_slice, len(full_seq))
                     attn_df = attention_dataframe(full_seq, full_attn)
                 else:
@@ -450,7 +464,7 @@ if st.button("Run comparison", type="primary"):
                 # st.info("No attention visualization for this model. But we can compute saliency!")
                 _, saliency_attrs = compute_saliency(bundle.classifier, sample_embedding)
                 saliency_scores = saliency_attrs.squeeze(0).numpy()[: len(trunc_seq)]
-                if residue_slice is not None:
+                if slot_ecs_only and residue_slice is not None:
                     full_saliency = expand_scores_to_full(saliency_scores, residue_slice, len(full_seq))
                     saliency_df = attention_dataframe(full_seq, full_saliency)
                 else:

@@ -158,21 +158,28 @@ if st.button("Run inference", type="primary"):
         toast_once("_embedder_ready_toast_shown", embedder_name, f"⚗️ Embedder ready: {embedder_name}")
         msa_only = st.session_state.get("global_embed_in_msa_mode", True)
         effective_seq_length = seq_length_ecs_only if ecs_only else seq_length
+        # Snip sequences to ECS regions before embedding when ecs_only is active
+        sequences_to_embed = (
+            [slice_sequence(seq, residue_slice) for seq in df_valid["sequence"].tolist()]
+            if ecs_only and residue_slice is not None
+            else df_valid["sequence"].tolist()
+        )
         if msa_only and getattr(embedder, "supports_msa_mode", True):
             ref_msa_path = _resolve_reference_msa(ecs_only, ref_msa_variant) if use_ref_msa else None
             embeddings = embedder.embed_msa(
-                df_valid["sequence"].tolist(),
+                sequences_to_embed,
                 seq_length=effective_seq_length,
                 reference_msa_path=ref_msa_path,
             )
         else:
             embeddings = embedder.embed_sequences_per_residue(
-                df_valid["sequence"].tolist(),
+                sequences_to_embed,
                 seq_length=effective_seq_length,
             )
 
     bundle = load_classifier_bundle(model_name)
-    embeddings_for_model = slice_embeddings(embeddings, residue_slice)
+    # Embeddings are already ECS-only when ecs_only is active — no post-hoc slicing needed
+    embeddings_for_model = slice_embeddings(embeddings, None if ecs_only else residue_slice)
     expected_dim = int(MODEL_REGISTRY[model_name]["kwargs"]["embedding_dim"])
     actual_dim = int(embeddings_for_model.shape[-1])
     if actual_dim != expected_dim:
@@ -239,7 +246,8 @@ if (
 
     if pred_table is None:
         bundle = load_classifier_bundle(model_name)
-        embeddings_for_model = slice_embeddings(embeddings, residue_slice)
+        # Embeddings were already snipped to ECS before embedding; no post-hoc slice needed
+        embeddings_for_model = slice_embeddings(embeddings, None if ecs_only else residue_slice)
         preds, confs, probs, _ = predict_probabilities(bundle, embeddings_for_model, return_attention=False)
         pred_table = build_prediction_table(df_valid, preds, confs, probs)
         st.session_state.predict_run["pred_table"] = pred_table
@@ -270,8 +278,12 @@ if (
 
         # Reuse the already-computed embeddings instead of re-running the
         # expensive ESM model for a single sequence.
+        # Embeddings were already snipped to ECS before embedding; no post-hoc slice needed.
         sample_embedding = embeddings[explain_idx].unsqueeze(0).to(torch.float32)
-        sample_embedding = slice_embeddings(sample_embedding, residue_slice)
+        if ecs_only and residue_slice is not None:
+            pass  # already ECS-only from the embed step
+        else:
+            sample_embedding = slice_embeddings(sample_embedding, residue_slice)
         if int(sample_embedding.shape[-1]) != expected_dim:
             st.error(
                 f"{model_name} expects {expected_dim}-dim embeddings, but the selected embedder produces {int(sample_embedding.shape[-1])}-dim embeddings. "
@@ -290,16 +302,23 @@ if (
             n_steps=ig_steps,
             internal_batch_size=max(4, min(8, ig_steps)),
         )
-        # full_seq spans the entire original sequence up to the embedding width.
-        # For ECS-only models, sample_embedding.shape[1] is the ECS width after
-        # slice_embeddings — use the pre-slice embedding width (embeddings.shape[1])
-        # so we display the full sequence with non-ECS residues grayed out.
-        embed_seq_len = int(embeddings.shape[1])
-        full_seq = row["sequence"][:embed_seq_len]
-        trunc_seq = slice_sequence(row["sequence"], residue_slice)
-        trunc_seq = trunc_seq[: sample_embedding.shape[1]]
+        # full_seq: original sequence up to a sensible display length.
+        # trunc_seq: the sequence the model actually saw (ECS-snipped when ecs_only,
+        #            otherwise full sequence up to the embedding width).
+        # When ecs_only is active, sequences were snipped before embedding so
+        # sample_embedding.shape[1] reflects the ECS width directly.
+        full_seq = row["sequence"]
+        if ecs_only and residue_slice is not None:
+            # The embedding covers only the ECS residues; trunc_seq is those residues.
+            trunc_seq = slice_sequence(row["sequence"], residue_slice)
+            trunc_seq = trunc_seq[: sample_embedding.shape[1]]
+        else:
+            embed_seq_len = int(embeddings.shape[1])
+            full_seq = row["sequence"][:embed_seq_len]
+            trunc_seq = full_seq[: sample_embedding.shape[1]]
         residue_scores = residue_attrs.squeeze(0).numpy()[: len(trunc_seq)]
-        if residue_slice is not None:
+        if ecs_only and residue_slice is not None:
+            # Expand ECS scores back onto the full sequence for display
             full_scores = expand_scores_to_full(residue_scores, residue_slice, len(full_seq))
             ig_df = residue_importance_dataframe(full_seq, full_scores)
         else:
@@ -308,7 +327,7 @@ if (
         saliency_df = None
         if bundle.uses_attention and sample_attn is not None:
             attn_vec = sample_attn[0].numpy()[: len(trunc_seq)]
-            if residue_slice is not None:
+            if ecs_only and residue_slice is not None:
                 full_attn = expand_scores_to_full(attn_vec, residue_slice, len(full_seq))
                 attn_df = attention_dataframe(full_seq, full_attn)
             else:
@@ -316,7 +335,7 @@ if (
         elif not bundle.uses_attention:
             _, saliency_attrs = compute_saliency(bundle.classifier, sample_embedding)
             saliency_scores = saliency_attrs.squeeze(0).numpy()[: len(trunc_seq)]
-            if residue_slice is not None:
+            if ecs_only and residue_slice is not None:
                 full_saliency = expand_scores_to_full(saliency_scores, residue_slice, len(full_seq))
                 saliency_df = attention_dataframe(full_seq, full_saliency)
             else:

@@ -160,7 +160,7 @@ The appropriate default variant is pre-selected based on the active model name (
 
 ## ECS-Only Mode
 
-Predict and Compare pages include an **ECS only** toggle. When enabled, provide ECS1 and ECS2 ranges (1-based, inclusive). The app embeds the full sequence (or MSA), then slices to the ECS regions for inference. Explainability plots remain on the full sequence with non-ECS positions set to zero. Use models with `ECS only` in their name for best results when this toggle is on.
+Predict and Compare pages include an **ECS only** toggle. When enabled, provide ECS1 and ECS2 ranges (1-based, inclusive). The app **snips the input sequences to the specified ECS regions first**, then passes the shorter sequences to the embedder. This means the ESM model only sees ECS residues, which avoids any influence from non-ECS context making it consistent to setup in training. After inference, explainability scores (IG, saliency, attention) are expanded back onto the full sequence for display, with non-ECS positions set to zero. Use models with `ECS only` in their name for best results when this toggle is on.
 
 ---
 
