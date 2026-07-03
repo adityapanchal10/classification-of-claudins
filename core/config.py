@@ -30,23 +30,31 @@ def _load_json_mapping(env_var_name: str) -> dict[str, str]:
 CHECKPOINT_GDRIVE_URLS = {
     # "Transformer + MLP": "",
     # "Transformer + MLP (ECS only)": "",
-    "Transformer + MLP 2": "https://drive.google.com/file/d/15UgFUV9prPKHVo2LbJpGlErlKQPagNfs/view?usp=drive_link",
-    "Transformer + MLP 2 (ECS only)": "https://drive.google.com/file/d/1hOzKZiQMtQwoIgy-iZiu7sQ9xdmin8it/view?usp=drive_link",
-    "Transformer + MLP 2 Non-MSA": "https://drive.google.com/file/d/1DapCccRHCPQ1GMOQnB9e0dY75Mf2gIZu/view?usp=drive_link",
-    "Transformer + MLP 2 Non-MSA (ECS only)": "https://drive.google.com/file/d/1bAP-orO6DyZegiZT5j_lWKRtYnqQ3NrT/view?usp=drive_link",
-    "Transformer + MLP 2 ESM2": "https://drive.google.com/file/d/1_HGkFovrdWqlNGus_gyjIrjKPThtW-W1/view?usp=drive_link",
-    "Transformer + MLP 2 ESM2 (ECS only)": "https://drive.google.com/file/d/1qsm52YGMTqQNqMoUVBA4kI72EUzU41WP/view?usp=drive_link",
+    "Transformer + MLP": "https://drive.google.com/file/d/1QGVmqZ76da6VTE8isXDZPg1wX_VGL2gA/view?usp=drive_link",
+    "Transformer + MLP (ECS only)": "https://drive.google.com/file/d/1hooadDGGtuu6BcvRY34tlqURTUmqtXMH/view?usp=drive_link",
+    "Transformer + MLP Non-MSA": "https://drive.google.com/file/d/1IFdeoc72dpTe4D_gTxZI6aSbDGT14EGi/view?usp=drive_link",
+    "Transformer + MLP Non-MSA (ECS only)": "https://drive.google.com/file/d/1V7UGUG5JF4sBG0SfIZgMs1cz3-DXakk4/view?usp=drive_link",
+    "Transformer + MLP ESM2": "https://drive.google.com/file/d/1LG1AYVl7Uw55L2NLZe_rD41lhdeOc9Wk/view?usp=drive_link",
+    "Transformer + MLP ESM2 (ECS only)": "https://drive.google.com/file/d/1nHMNzLOhbxUab9jxDVPcVSLYdDXla9f8/view?usp=drive_link",
+    "Transformer + MLP Diverse": "https://drive.google.com/file/d/18wVpX7hm3686sphnGSYHQOnrmgwIC2bi/view?usp=drive_link",
+    "Transformer + MLP Diverse (ECS only)": "https://drive.google.com/file/d/1uM9Zcr-Wi1eoR272eKXQrUj4NkJblGLf/view?usp=drive_link",
+    "Transformer + MLP Balanced": "https://drive.google.com/file/d/1nhvxqPYbGYLEnKD_ijK6uOeBs5QwdS3X/view?usp=drive_link",
+    "Transformer + MLP Balanced (ECS only)": "https://drive.google.com/file/d/1nhvxqPYbGYLEnKD_ijK6uOeBs5QwdS3X/view?usp=drive_link",
+    "Transformer + MLP Family": "https://drive.google.com/file/d/1kQldx07ac80MwtRQJrtOJZ6nQVSR_2iM/view?usp=drive_link",
+    "Transformer + MLP Family (ECS only)": "https://drive.google.com/file/d/1kQldx07ac80MwtRQJrtOJZ6nQVSR_2iM/view?usp=drive_link",
     # "Simple Linear": "",
-    "Simple Linear 2": "https://drive.google.com/file/d/1SjO58YugElFbhskNqs2L_V-VYYl8Nv-k/view?usp=drive_link",
-    "Simple Linear 2 (ECS only)": "https://drive.google.com/file/d/1GK8T3x_KiaMWVRJfjfNeEUVsi0byPQ4D/view?usp=drive_link",
-    "Simple Linear 2 Non-MSA": "https://drive.google.com/file/d/1DFUr9Mrrfq92u64buc_ZGE0BKOhEueaa/view?usp=drive_link",
-    "Simple Linear 2 Non-MSA (ECS only)": "https://drive.google.com/file/d/1U352kMRjMHMUZ1lW7SyD_pHftt-fGBv8/view?usp=drive_link",
-    "Simple Linear 2 ESM2": "https://drive.google.com/file/d/1lYnWKunw8U12O2wfThSivyhlo3RRMHtb/view?usp=drive_link",
-    "Simple Linear 2 ESM2 (ECS only)": "https://drive.google.com/file/d/1951CTCooH5ZGgQ3_zVSqWTXE-J9AK_-s/view?usp=drive_link",
-    "Simple Linear 2 Diverse": "https://drive.google.com/file/d/1iaLFkcQFKMH1dBWjYKyBMzDIN1BguM5n/view?usp=sharing",
-    "Simple Linear 2 Diverse (ECS only)": "https://drive.google.com/file/d/1BBzItiIZK-GJ_sz5kde1Rf3D3isHr7f0/view?usp=sharing",
-    "Simple Linear 2 Balanced": "https://drive.google.com/file/d/1x-UFJ1j0_Hb9Mi_gynmCsRg3esaITT2i/view?usp=drive_link",
-    "Simple Linear 2 Balanced (ECS only)": "https://drive.google.com/file/d/1mQ_xk9s4NtP8lVeY3pixhRs1Cl8uPun0/view?usp=drive_link",
+    "Simple Linear": "https://drive.google.com/file/d/1SjO58YugElFbhskNqs2L_V-VYYl8Nv-k/view?usp=drive_link",
+    "Simple Linear (ECS only)": "https://drive.google.com/file/d/1GK8T3x_KiaMWVRJfjfNeEUVsi0byPQ4D/view?usp=drive_link",
+    "Simple Linear Non-MSA": "https://drive.google.com/file/d/1DFUr9Mrrfq92u64buc_ZGE0BKOhEueaa/view?usp=drive_link",
+    "Simple Linear Non-MSA (ECS only)": "https://drive.google.com/file/d/1U352kMRjMHMUZ1lW7SyD_pHftt-fGBv8/view?usp=drive_link",
+    "Simple Linear ESM2": "https://drive.google.com/file/d/1lYnWKunw8U12O2wfThSivyhlo3RRMHtb/view?usp=drive_link",
+    "Simple Linear ESM2 (ECS only)": "https://drive.google.com/file/d/1951CTCooH5ZGgQ3_zVSqWTXE-J9AK_-s/view?usp=drive_link",
+    "Simple Linear Diverse": "https://drive.google.com/file/d/1iaLFkcQFKMH1dBWjYKyBMzDIN1BguM5n/view?usp=sharing",
+    "Simple Linear Diverse (ECS only)": "https://drive.google.com/file/d/1BBzItiIZK-GJ_sz5kde1Rf3D3isHr7f0/view?usp=sharing",
+    "Simple Linear Balanced": "https://drive.google.com/file/d/1x-UFJ1j0_Hb9Mi_gynmCsRg3esaITT2i/view?usp=drive_link",
+    "Simple Linear Balanced (ECS only)": "https://drive.google.com/file/d/1mQ_xk9s4NtP8lVeY3pixhRs1Cl8uPun0/view?usp=drive_link",
+    "Simple Linear Family": "https://drive.google.com/file/d/1hkBtuDy1NVZTeBkXKDz7r00pBA2jcWme/view?usp=drive_link",
+    "Simple Linear Family (ECS only)": "https://drive.google.com/file/d/1D6AecBjGtztGtgDAbQEGybaxT_CziDXI/view?usp=drive_link",
     # "Simple CNN": "",
     # "Transformer (simple)": "",
     # "Transformer (complex)": "",
@@ -109,7 +117,7 @@ MODEL_REGISTRY = {
     #         "seq_len": 80,
     #     },
     # },
-    "Transformer + MLP 2": {
+    "Transformer + MLP": {
         "class_name": "Transformer + MLP Classifier",
         "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on train/val split from the single FASTA file",
         "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
@@ -123,10 +131,10 @@ MODEL_REGISTRY = {
             "num_heads": 4,
             "num_attention_blocks": 1,
             "dropout": 0.4,
-            "seq_len": 220,
+            "seq_len": 190,
         },
     },
-    "Transformer + MLP 2 (ECS only)": {
+    "Transformer + MLP (ECS only)": {
         "class_name": "Transformer + MLP Classifier",
         "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on train/val split from the single FASTA file modified to contain only the ECS1/2 segments",
         "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
@@ -144,7 +152,7 @@ MODEL_REGISTRY = {
             "seq_len": 80,
         },
     },
-    "Transformer + MLP 2 Non-MSA": {
+    "Transformer + MLP Non-MSA": {
         "class_name": "Transformer + MLP Classifier",
         "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on train/val split from the single FASTA file, embeddings generated without MSA context.",
         "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
@@ -158,10 +166,10 @@ MODEL_REGISTRY = {
             "num_heads": 4,
             "num_attention_blocks": 1,
             "dropout": 0.4,
-            "seq_len": 220,
+            "seq_len": 190,
         },
     },
-    "Transformer + MLP 2 Non-MSA (ECS only)": {
+    "Transformer + MLP Non-MSA (ECS only)": {
         "class_name": "Transformer + MLP Classifier",
         "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on train/val split from the single FASTA file modified to contain only the ECS1/2 segments.",
         "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
@@ -179,7 +187,7 @@ MODEL_REGISTRY = {
             "seq_len": 80,
         },
     },
-    "Transformer + MLP 2 ESM2": {
+    "Transformer + MLP ESM2": {
         "class_name": "Transformer + MLP Classifier",
         "description": "Attention model with ESM2 positional embeddings and fused pooled sequence features. Trained on train/val split from the single FASTA file.",
         "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
@@ -193,10 +201,10 @@ MODEL_REGISTRY = {
             "num_heads": 4,
             "num_attention_blocks": 1,
             "dropout": 0.4,
-            "seq_len": 220,
+            "seq_len": 190,
         },
     },
-    "Transformer + MLP 2 ESM2 (ECS only)": {
+    "Transformer + MLP ESM2 (ECS only)": {
         "class_name": "Transformer + MLP Classifier",
         "description": "Attention model with ESM2 positional embeddings and fused pooled sequence features. Trained on train/val split from the single FASTA file modified to contain only the ECS1/2 segments.",
         "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
@@ -206,6 +214,111 @@ MODEL_REGISTRY = {
         "compatible_embedder": "ESM2",
         "kwargs": {
             "embedding_dim": 640,
+            "proj_dim": 128,
+            "num_classes": 3,
+            "num_heads": 4,
+            "num_attention_blocks": 1,
+            "dropout": 0.4,
+            "seq_len": 80,
+        },
+    },
+    "Transformer + MLP Diverse": {
+        "class_name": "Transformer + MLP Classifier",
+        "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on chunked train/val split from the single FASTA file. Chunks/Batches contained at-least one sequence from each claudin family with the remaining sequences filled in a round-robin manner, prioritising families with the most leftover sequences.",
+        "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
+        "uses_attention": True,
+        "checkpoint_file": "transformer_mlp_classifier_single_fasta_diverse.pt",
+        "compatible_embedder": "MSA Transformer",
+        "kwargs": {
+            "embedding_dim": 768,
+            "proj_dim": 128,
+            "num_classes": 3,
+            "num_heads": 4,
+            "num_attention_blocks": 1,
+            "dropout": 0.4,
+            "seq_len": 190,
+        },
+    },
+    "Transformer + MLP Diverse (ECS only)": {
+        "class_name": "Transformer + MLP Classifier",
+        "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on chunked train/val split from the single FASTA file modified to contain only the ECS1/2 segments. Chunks/Batches contained at-least one sequence from each claudin family with the remaining sequences filled in a round-robin manner, prioritising families with the most leftover sequences.",
+        "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
+        "uses_attention": True,
+        "checkpoint_file": "transformer_mlp_classifier_single_fasta_diverse_ecs_only.pt",
+        "compatible_embedder": "MSA Transformer",
+        "residue_slice": [(27, 81), (138, 164)],
+        "kwargs": {
+            "embedding_dim": 768,
+            "proj_dim": 128,
+            "num_classes": 3,
+            "num_heads": 4,
+            "num_attention_blocks": 1,
+            "dropout": 0.4,
+            "seq_len": 80,
+        },
+    },
+    "Transformer + MLP Balanced": {
+        "class_name": "Transformer + MLP Classifier",
+        "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on chunked train/val split from the single FASTA file. Chunks/Batches contained equal number of sequences from each claudin family.",
+        "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
+        "uses_attention": True,
+        "checkpoint_file": "transformer_mlp_classifier_single_fasta_balanced.pt",
+        "compatible_embedder": "MSA Transformer",
+        "kwargs": {
+            "embedding_dim": 768,
+            "proj_dim": 128,
+            "num_classes": 3,
+            "num_heads": 4,
+            "num_attention_blocks": 1,
+            "dropout": 0.4,
+            "seq_len": 190,
+        },
+    },
+    "Transformer + MLP Balanced (ECS only)": {
+        "class_name": "Transformer + MLP Classifier",
+        "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on chunked train/val split from the single FASTA file modified to contain only the ECS1/2 segments. Chunks/Batches contained equal number of sequences from each claudin family.",
+        "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
+        "uses_attention": True,
+        "checkpoint_file": "transformer_mlp_classifier_single_fasta_balanced_ecs_only.pt",
+        "compatible_embedder": "MSA Transformer",
+        "residue_slice": [(27, 81), (138, 164)],
+        "kwargs": {
+            "embedding_dim": 768,
+            "proj_dim": 128,
+            "num_classes": 3,
+            "num_heads": 4,
+            "num_attention_blocks": 1,
+            "dropout": 0.4,
+            "seq_len": 80,
+        },
+    },
+    "Transformer + MLP Family": {
+        "class_name": "Transformer + MLP Classifier",
+        "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on chunked train/val split from the single FASTA file. Chunks/Batches grouped by claudin family.",
+        "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
+        "uses_attention": True,
+        "checkpoint_file": "transformer_mlp_classifier_single_fasta_family.pt",
+        "compatible_embedder": "MSA Transformer",
+        "kwargs": {
+            "embedding_dim": 768,
+            "proj_dim": 128,
+            "num_classes": 3,
+            "num_heads": 4,
+            "num_attention_blocks": 1,
+            "dropout": 0.4,
+            "seq_len": 190,
+        },
+    },
+    "Transformer + MLP Family (ECS only)": {
+        "class_name": "Transformer + MLP Classifier",
+        "description": "Attention model with positional embeddings and fused pooled sequence features. Trained on chunked train/val split from the single FASTA file modified to contain only the ECS1/2 segments. Chunks/Batches grouped by claudin family.",
+        "architecture": "Linear projection -> positional embedding -> self-attention blocks -> attention/mean/max pooling -> fusion MLP -> linear classifier",
+        "uses_attention": True,
+        "checkpoint_file": "transformer_mlp_classifier_single_fasta_family_ecs_only.pt",
+        "compatible_embedder": "MSA Transformer",
+        "residue_slice": [(27, 81), (138, 164)],
+        "kwargs": {
+            "embedding_dim": 768,
             "proj_dim": 128,
             "num_classes": 3,
             "num_heads": 4,
@@ -227,7 +340,7 @@ MODEL_REGISTRY = {
     #         "embedding_dim": 768
     #     },
     # },
-    "Simple Linear 2": {
+    "Simple Linear": {
         "class_name": "Simple Linear Classifier",
         "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
@@ -240,7 +353,7 @@ MODEL_REGISTRY = {
             "embedding_dim": 768
         },
     },
-    "Simple Linear 2 (ECS only)": {
+    "Simple Linear (ECS only)": {
         "class_name": "Simple Linear Classifier",
         "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file, containing only the ECS1/2 segments.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
@@ -253,7 +366,7 @@ MODEL_REGISTRY = {
             "embedding_dim": 768
         },
     },
-    "Simple Linear 2 Non-MSA": {
+    "Simple Linear Non-MSA": {
         "class_name": "Simple Linear Classifier",
         "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file, embeddings generated without MSA context.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
@@ -266,7 +379,7 @@ MODEL_REGISTRY = {
             "embedding_dim": 768
         },
     },
-    "Simple Linear 2 Non-MSA (ECS only)": {
+    "Simple Linear Non-MSA (ECS only)": {
         "class_name": "Simple Linear Classifier",
         "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file modified to contain only the ECS1/2 segments, embeddings generated without MSA context.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
@@ -280,7 +393,7 @@ MODEL_REGISTRY = {
             "embedding_dim": 768
         },
     },
-    "Simple Linear 2 ESM2": {
+    "Simple Linear ESM2": {
         "class_name": "Simple Linear Classifier",
         "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file using ESM2 embeddings.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
@@ -293,7 +406,7 @@ MODEL_REGISTRY = {
             "embedding_dim": 640
         },
     },
-    "Simple Linear 2 ESM2 (ECS only)": {
+    "Simple Linear ESM2 (ECS only)": {
         "class_name": "Simple Linear Classifier",
         "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on train/val split from the single FASTA file using ESM2 embeddings.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
@@ -307,7 +420,7 @@ MODEL_REGISTRY = {
             "embedding_dim": 640
         },
     },
-    "Simple Linear 2 Diverse": {
+    "Simple Linear Diverse": {
         "class_name": "Simple Linear Classifier",
         "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on chunked train/val split from the single FASTA file. Chunks/Batches contained at-least one sequence from each claudin family with the remaining sequences filled in a round-robin manner, prioritisingfamilies with the most leftover sequences.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
@@ -320,7 +433,7 @@ MODEL_REGISTRY = {
             "embedding_dim": 768
         },
     },
-    "Simple Linear 2 Diverse (ECS only)": {
+    "Simple Linear Diverse (ECS only)": {
         "class_name": "Simple Linear Classifier",
         "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on chunked train/val split from the single FASTA file modified to contain only the ECS1/2 segments. Chunks/Batches contained at-least one sequence from each claudin family with the remaining sequences filled in a round-robin manner, prioritisingfamilies with the most leftover sequences.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
@@ -334,7 +447,7 @@ MODEL_REGISTRY = {
             "embedding_dim": 768
         },
     },
-    "Simple Linear 2 Balanced": {
+    "Simple Linear Balanced": {
         "class_name": "Simple Linear Classifier",
         "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on chunked train/val split from the single FASTA file. Chunks/Batches contained equal number of sequences from each claudin family.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
@@ -347,12 +460,39 @@ MODEL_REGISTRY = {
             "embedding_dim": 768
         },
     },
-    "Simple Linear 2 Balanced (ECS only)": {
+    "Simple Linear Balanced (ECS only)": {
         "class_name": "Simple Linear Classifier",
         "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on chunked train/val split from the single FASTA file modified to contain only the ECS1/2 segments. Chunks/Batches contained equal number of sequences from each claudin family.",
         "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
         "uses_attention": False,
         "checkpoint_file": "simple_linear_classifier_single_fasta_balanced_ecs_only.pt",
+        "compatible_embedder": "MSA Transformer",
+        "residue_slice": [(27, 81), (138, 164)],
+        "kwargs": { 
+            "n_classes": 3, 
+            "dropout": 0.2,
+            "embedding_dim": 768
+        },
+    },
+    "Simple Linear Family": {
+        "class_name": "Simple Linear Classifier",
+        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on chunked train/val split from the single FASTA file. Chunks/Batches grouped by claudin family.",
+        "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
+        "uses_attention": False,
+        "checkpoint_file": "simple_linear_classifier_single_fasta_family.pt",
+        "compatible_embedder": "MSA Transformer",
+        "kwargs": { 
+            "n_classes": 3, 
+            "dropout": 0.2,
+            "embedding_dim": 768
+        },
+    },
+    "Simple Linear Family (ECS only)": {
+        "class_name": "Simple Linear Classifier",
+        "description": "LayerNorm baseline using learned residue attention and a single linear head. Trained on chunked train/val split from the single FASTA file modified to contain only the ECS1/2 segments. Chunks/Batches grouped by claudin family.",
+        "architecture": "LayerNorm -> linear attention scores -> softmax weights -> weighted sum -> dropout -> linear classifier",
+        "uses_attention": False,
+        "checkpoint_file": "simple_linear_classifier_single_fasta_family_ecs_only.pt",
         "compatible_embedder": "MSA Transformer",
         "residue_slice": [(27, 81), (138, 164)],
         "kwargs": { 

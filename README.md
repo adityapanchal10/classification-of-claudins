@@ -32,22 +32,30 @@ Three-class channel-protein classification:
 
 | Model | Architecture summary | Embedder | Attention |
 |---|---|---|---|
-| **Transformer + MLP 2** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | MSA Transformer | ✅ |
-| **Transformer + MLP 2 (ECS only)** | As above, trained on ECS1/2 residue slices | MSA Transformer | ✅ |
-| **Transformer + MLP 2 Non-MSA** | As above, trained without MSA context | MSA Transformer | ✅ |
-| **Transformer + MLP 2 Non-MSA (ECS only)** | As above, Non-MSA + ECS-only | MSA Transformer | ✅ |
-| **Transformer + MLP 2 ESM2** | As above, trained on ESM2 (640-d) embeddings | ESM2 | ✅ |
-| **Transformer + MLP 2 ESM2 (ECS only)** | As above, ESM2 + ECS-only | ESM2 | ✅ |
-| **Simple Linear 2** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head | MSA Transformer | ❌ |
-| **Simple Linear 2 (ECS only)** | As above, ECS-only | MSA Transformer | ❌ |
-| **Simple Linear 2 Non-MSA** | As above, trained without MSA context | MSA Transformer | ❌ |
-| **Simple Linear 2 Non-MSA (ECS only)** | As above, Non-MSA + ECS-only | MSA Transformer | ❌ |
-| **Simple Linear 2 ESM2** | As above, trained on ESM2 (640-d) embeddings | ESM2 | ❌ |
-| **Simple Linear 2 ESM2 (ECS only)** | As above, ESM2 + ECS-only | ESM2 | ❌ |
-| **Simple Linear 2 Diverse** | As Simple Linear 2, trained with diversity-aware chunked batches (round-robin, ≥1 sequence per claudin family per batch) | MSA Transformer | ❌ |
-| **Simple Linear 2 Diverse (ECS only)** | As above, ECS-only | MSA Transformer | ❌ |
-| **Simple Linear 2 Balanced** | As Simple Linear 2, trained with balanced chunked batches (equal sequences per claudin family per batch) | MSA Transformer | ❌ |
-| **Simple Linear 2 Balanced (ECS only)** | As above, ECS-only | MSA Transformer | ❌ |
+| **Transformer + MLP** | Linear projection → positional embedding → self-attention blocks → attention/mean/max pooling → fusion MLP → linear head | MSA Transformer | ✅ |
+| **Transformer + MLP (ECS only)** | As above, trained on ECS1/2 residue slices | MSA Transformer | ✅ |
+| **Transformer + MLP Non-MSA** | As above, trained without MSA context | MSA Transformer | ✅ |
+| **Transformer + MLP Non-MSA (ECS only)** | As above, Non-MSA + ECS-only | MSA Transformer | ✅ |
+| **Transformer + MLP ESM2** | As above, trained on ESM2 (640-d) embeddings | ESM2 | ✅ |
+| **Transformer + MLP ESM2 (ECS only)** | As above, ESM2 + ECS-only | ESM2 | ✅ |
+| **Simple Linear** | LayerNorm → learned attention scores → softmax-weighted sum → dropout → linear head | MSA Transformer | ❌ |
+| **Simple Linear (ECS only)** | As above, ECS-only | MSA Transformer | ❌ |
+| **Simple Linear Non-MSA** | As above, trained without MSA context | MSA Transformer | ❌ |
+| **Simple Linear Non-MSA (ECS only)** | As above, Non-MSA + ECS-only | MSA Transformer | ❌ |
+| **Simple Linear ESM2** | As above, trained on ESM2 (640-d) embeddings | ESM2 | ❌ |
+| **Simple Linear ESM2 (ECS only)** | As above, ESM2 + ECS-only | ESM2 | ❌ |
+| **Simple Linear Diverse** | As Simple Linear, trained with diversity-aware chunked batches (round-robin, ≥1 sequence per claudin family per batch) | MSA Transformer | ❌ |
+| **Simple Linear Diverse (ECS only)** | As above, ECS-only | MSA Transformer | ❌ |
+| **Simple Linear Balanced** | As Simple Linear, trained with balanced chunked batches (equal sequences per claudin family per batch) | MSA Transformer | ❌ |
+| **Simple Linear Balanced (ECS only)** | As above, ECS-only | MSA Transformer | ❌ |
+| **Simple Linear Family** | As Simple Linear, trained with family-grouped chunked batches | MSA Transformer | ❌ |
+| **Simple Linear Family (ECS only)** | As above, ECS-only | MSA Transformer | ❌ |
+| **Transformer + MLP Diverse** | As Transformer + MLP, trained with diversity-aware chunked batches (round-robin, ≥1 sequence per claudin family per batch) | MSA Transformer | ✅ |
+| **Transformer + MLP Diverse (ECS only)** | As above, ECS-only | MSA Transformer | ✅ |
+| **Transformer + MLP Balanced** | As Transformer + MLP, trained with balanced chunked batches (equal sequences per claudin family per batch) | MSA Transformer | ✅ |
+| **Transformer + MLP Balanced (ECS only)** | As above, ECS-only | MSA Transformer | ✅ |
+| **Transformer + MLP Family** | As Transformer + MLP, trained with family-grouped chunked batches | MSA Transformer | ✅ |
+| **Transformer + MLP Family (ECS only)** | As above, ECS-only | MSA Transformer | ✅ |
 
 Checkpoints live in `checkpoints/`. Each `.pt` file stores the model weights. Checkpoints not present locally are fetched automatically from Google Drive on first use.
 
@@ -55,7 +63,7 @@ Checkpoints live in `checkpoints/`. Each `.pt` file stores the model weights. Ch
 - Models suffixed with `ESM2` were trained on ESM2 (640-d) embeddings — select the `ESM2` embedder for these. The sidebar and Compare page filter model lists by the selected embedder to prevent mismatches.
 - Models marked `Non-MSA` were trained with the MSA Transformer in non-MSA (single-sequence) mode — keep the `MSA Transformer` embedder selected and turn the MSA mode toggle **off**.
 - `ECS only` variants were trained on the ECS1/ECS2 residue slices (`residue_slice`: positions 27–81 and 138–164, 0-based).
-- `Diverse` variants used diversity-aware batching (round-robin per claudin family). `Balanced` variants used equal-per-family batching.
+- `Diverse` variants used diversity-aware batching (round-robin per claudin family). `Balanced` variants used equal-per-family batching. `Family` variants used family-grouped batching.
 
 ---
 
