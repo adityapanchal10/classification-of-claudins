@@ -511,7 +511,7 @@ MODEL_REGISTRY = {
         "checkpoint_file": "mamba2_classifier_esm2_single_fasta.pt",
         "compatible_embedder": "ESM2",
         "kwargs": {
-            "n_classes": 3,
+            "num_classes": 3,
             "dropout": 0.2,
             "embedding_dim": 640,
         },
@@ -525,7 +525,7 @@ MODEL_REGISTRY = {
         "compatible_embedder": "ESM2",
         "residue_slice": [(27, 81), (138, 164)],
         "kwargs": {
-            "n_classes": 3,
+            "num_classes": 3,
             "dropout": 0.2,
             "embedding_dim": 640,
         },
