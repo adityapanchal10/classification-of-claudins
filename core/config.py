@@ -507,7 +507,7 @@ MODEL_REGISTRY = {
         "class_name": "Mamba2 Classifier",
         "description": "Mamba2 state-space model using ESM2 embeddings. Trained on train/val split from the single FASTA file.",
         "architecture": "ESM2 embeddings -> Mamba2 SSM blocks -> mean pooling -> linear classifier",
-        "uses_attention": False,
+        "uses_attention": True,
         "checkpoint_file": "mamba2_classifier_esm2_single_fasta.pt",
         "compatible_embedder": "ESM2",
         "kwargs": {
@@ -520,7 +520,7 @@ MODEL_REGISTRY = {
         "class_name": "Mamba2 Classifier",
         "description": "Mamba2 state-space model using ESM2 embeddings. Trained on train/val split from the single FASTA file modified to contain only the ECS1/2 segments.",
         "architecture": "ESM2 embeddings -> Mamba2 SSM blocks -> mean pooling -> linear classifier",
-        "uses_attention": False,
+        "uses_attention": True,
         "checkpoint_file": "mamba2_classifier_esm2_single_fasta_ecs_only.pt",
         "compatible_embedder": "ESM2",
         "residue_slice": [(27, 81), (138, 164)],

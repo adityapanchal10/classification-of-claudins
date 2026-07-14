@@ -758,6 +758,7 @@ MODEL_CLASS_MAP = {
     "Simple CNN Classifier": SimpleCNNClassifier,
     "Transformer Classifier (simple)": SimpleTransformerClassifier,
     "Transformer Classifier (complex)": ComplexTransformerClassifier,
+    "Mamba2 Classifier": Mamba2ESMClassifier,
 }
 
 
