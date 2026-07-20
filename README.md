@@ -56,11 +56,13 @@ Three-class channel-protein classification:
 | **Transformer + MLP Balanced (ECS only)** | As above, ECS-only | MSA Transformer | ✅ |
 | **Transformer + MLP Family** | As Transformer + MLP, trained with family-grouped chunked batches | MSA Transformer | ✅ |
 | **Transformer + MLP Family (ECS only)** | As above, ECS-only | MSA Transformer | ✅ |
+| **Mamba2** | Input projection → selective SSM block → LayerNorm → attention pooling → classifier head | ESM2 | ✅ |
+| **Mamba2 (ECS only)** | As above, ECS-only | ESM2 | ✅ |
 
 Checkpoints live in `checkpoints/`. Each `.pt` file stores the model weights. Checkpoints not present locally are fetched automatically from Google Drive on first use.
 
 **Compatibility notes:**
-- Models suffixed with `ESM2` were trained on ESM2 (640-d) embeddings — select the `ESM2` embedder for these. The sidebar and Compare page filter model lists by the selected embedder to prevent mismatches.
+- Models suffixed with `ESM2` were trained on ESM2 (640-d) embeddings - select the `ESM2` embedder for these. The sidebar and Compare page filter model lists by the selected embedder to prevent mismatches.
 - Models marked `Non-MSA` were trained with the MSA Transformer in non-MSA (single-sequence) mode — keep the `MSA Transformer` embedder selected and turn the MSA mode toggle **off**.
 - `ECS only` variants were trained on the ECS1/ECS2 residue slices (`residue_slice`: positions 27–81 and 138–164, 0-based).
 - `Diverse` variants used diversity-aware batching (round-robin per claudin family). `Balanced` variants used equal-per-family batching. `Family` variants used family-grouped batching.
@@ -214,3 +216,30 @@ Update `CLASS_MAP` in `core/config.py`. All prediction tables and explainability
 ### Override checkpoint URLs at runtime
 
 Set the `CHECKPOINT_GDRIVE_URLS_JSON` environment variable to a JSON object mapping model names to Drive URLs. These are merged on top of the defaults in `config.py`.
+
+---
+
+## References
+
+- MSA Transformer:
+```bibtex
+@article{rao2021msa,
+  author = {Rao, Roshan and Liu, Jason and Verkuil, Robert and Meier, Joshua and Canny, John F. and Abbeel, Pieter and Sercu, Tom and Rives, Alexander},
+  title={MSA Transformer},
+  year={2021},
+  doi={10.1101/2021.02.12.430858},
+  url={https://www.biorxiv.org/content/10.1101/2021.02.12.430858v1},
+  journal={bioRxiv}
+}
+```
+
+- ESM2 and ESMFold:
+```bibtex
+@article{lin2022language,
+  title={Language models of protein sequences at the scale of evolution enable accurate structure prediction},
+  author={Lin, Zeming and Akin, Halil and Rao, Roshan and Hie, Brian and Zhu, Zhongkai and Lu, Wenting and Smetanin, Nikita and dos Santos Costa, Allan and Fazel-Zarandi, Maryam and Sercu, Tom and Candido, Sal and others},
+  journal={bioRxiv},
+  year={2022},
+  publisher={Cold Spring Harbor Laboratory}
+}
+```
